@@ -337,7 +337,7 @@ class BatchProcessor:
             goals: Learning goals
             template_type: Type of template to generate
         """
-        content = document_data.get('content_without_image', '')
+        content = document_data.get('content_without_image', '') or document_data.get('content', '')
 
         # Generate template based on type
         if template_type == 'questions':

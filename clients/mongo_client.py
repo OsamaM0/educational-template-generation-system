@@ -149,7 +149,7 @@ class MongoDBClient:
                 'metadata': {
                     'generation_source': 'template_generator',
                     'goals_source': 'database' if len(goals) > 5 else 'default',
-                    'content_length': len(document_data.get('content_without_image', ''))
+                    'content_length': len(document_data.get('content_without_image') or document_data.get('content') or '')
                 }
             }
             
@@ -202,7 +202,7 @@ class MongoDBClient:
                 'metadata': {
                     'generation_source': 'template_generator',
                     'goals_source': 'database' if len(goals) > 5 else 'default',
-                    'content_length': len(document_data.get('content_without_image', ''))
+                    'content_length': len(document_data.get('content_without_image') or document_data.get('content') or '')
                 }
             }
             
@@ -250,7 +250,7 @@ class MongoDBClient:
                 'generated_at': datetime.utcnow(),
                 'metadata': {
                     'generation_source': 'template_generator',
-                    'content_length': len(document_data.get('content_without_image', ''))
+                    'content_length': len(document_data.get('content_without_image') or document_data.get('content') or '')
                 }
             }
             
@@ -298,7 +298,7 @@ class MongoDBClient:
                 'generated_at': datetime.utcnow(),
                 'metadata': {
                     'generation_source': 'template_generator',
-                    'content_length': len(document_data.get('content_without_image', '')),
+                    'content_length': len(document_data.get('content_without_image') or document_data.get('content') or ''),
                     'node_count': len(mindmap.get('nodeDataArray', [])) if isinstance(mindmap, dict) else 0
                 }
             }
