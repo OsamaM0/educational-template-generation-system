@@ -15,6 +15,7 @@ Usage:
 
 import os
 import sys
+import json
 import argparse
 from typing import List, Optional
 
@@ -98,6 +99,9 @@ Examples:
   
     # Process a single document by UUID
     python bulk_generator.py --uuid 1487b3f2-c91f-4fe8-b58e-59330058fcfa --templates questions summaries mindmaps
+  
+    # Process multiple documents from a UUID file
+    python bulk_generator.py --uuid-file doc_ids.json --templates questions summaries mindmaps
         """
     )
     
@@ -118,6 +122,8 @@ Examples:
                        help="Number of parallel workers (default: 1, sequential)")
     parser.add_argument("--uuid", dest="document_uuid", type=str, default=None,
                        help="Process a single document by UUID; overrides pagination options")
+    parser.add_argument("--uuid-file", dest="uuid_file", type=str, default=None,
+                       help="Path to a JSON file containing a list of document UUIDs to process")
     
     # Connection options
     parser.add_argument("--api-url", default="http://65.109.31.94:8080",
@@ -172,9 +178,12 @@ Examples:
     try:
         # Print processing configuration
         print(f"\n📋 Processing Configuration:")
-        print(f"   Mode: {'Single Document' if args.document_uuid else 'Batch'}")
+        mode = 'Single Document' if args.document_uuid else ('UUID File' if args.uuid_file else 'Batch')
+        print(f"   Mode: {mode}")
         if args.document_uuid:
             print(f"   Document UUID: {args.document_uuid}")
+        if args.uuid_file:
+            print(f"   UUID File: {args.uuid_file}")
         print(f"   Max Documents: {args.max_docs or 'All'}")
         print(f"   Page Size: {args.page_size}")
         print(f"   Start Page: {args.start_page}")
@@ -226,6 +235,72 @@ Examples:
 
             print_collection_stats(mongo_client)
             print("\n🎉 Single document processing completed!")
+            return 0
+
+        # UUID file mode
+        if args.uuid_file:
+            # Load and validate UUIDs from file
+            if not os.path.isfile(args.uuid_file):
+                print(f"❌ UUID file not found: {args.uuid_file}")
+                return 1
+            
+            with open(args.uuid_file, 'r', encoding='utf-8') as f:
+                uuid_list = json.load(f)
+            
+            if not isinstance(uuid_list, list) or not all(isinstance(u, str) for u in uuid_list):
+                print("❌ UUID file must contain a JSON array of UUID strings")
+                return 1
+            
+            print(f"\n📂 Loaded {len(uuid_list)} UUIDs from {args.uuid_file}")
+            
+            if args.dry_run:
+                print("\n🏃‍♂️ DRY RUN MODE - No changes will be made")
+                print(f"📊 Would process {len(uuid_list)} documents")
+                print("✅ Dry run completed")
+                return 0
+            
+            # Show current stats before processing
+            print_collection_stats(mongo_client)
+            
+            # Fetch documents by UUID and process
+            print(f"\n🎯 Fetching and processing {len(uuid_list)} documents from UUID file...")
+            documents = []
+            not_found = []
+            for uid in uuid_list:
+                doc = api_client.get_document_by_uuid(uid)
+                if doc:
+                    documents.append(doc)
+                else:
+                    not_found.append(uid)
+            
+            if not_found:
+                print(f"⚠️ {len(not_found)} UUIDs not found and will be skipped:")
+                for uid in not_found:
+                    print(f"   - {uid}")
+            
+            if not documents:
+                print("❌ No valid documents found from UUID file")
+                return 1
+            
+            print(f"📄 Processing {len(documents)} documents...")
+            
+            batch_processor = BatchProcessor(
+                api_client=api_client,
+                mongo_client=mongo_client,
+                template_generator=template_generator
+            )
+            batch_processor.stats.total_documents = len(documents)
+            
+            if args.workers == 1:
+                batch_processor._process_documents_sequential(documents, args.templates, args.skip_existing)
+            else:
+                batch_processor._process_documents_parallel(documents, args.templates, args.skip_existing, args.workers)
+            
+            batch_processor.stats.finish()
+            batch_processor._print_final_stats()
+            
+            print_collection_stats(mongo_client)
+            print("\n🎉 UUID file processing completed!")
             return 0
 
         if args.dry_run:
