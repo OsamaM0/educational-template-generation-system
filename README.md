@@ -1,414 +1,689 @@
-# Template Generation System
+# TahderPlus — Educational Template Generation System
 
-A modular system for generating educational content templates including question banks, worksheets, and summaries with **enhanced goal-based question generation**.
+An AI-powered educational content generation platform that transforms lesson documents into structured question banks, worksheets, summaries, and mind maps. Built for the **TahderPlus** e-learning ecosystem with first-class **Arabic** and **English** bilingual support.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Quick Start](#quick-start)
+- [Template Types](#template-types)
+  - [Question Bank](#1-question-bank)
+  - [Goal-Based Questions](#2-goal-based-questions)
+  - [Worksheet](#3-worksheet)
+  - [Summary](#4-summary)
+  - [Mind Map](#5-mind-map)
+- [CLI Usage](#cli-usage)
+  - [Single Document](#single-document-mainpy)
+  - [Bulk Processing](#bulk-processing-bulk_generatorpy)
+- [Python API](#python-api)
+- [Output Structures](#output-structures)
+- [Mind Map Advanced Configuration](#mind-map-advanced-configuration)
+- [Math-Aware Reasoning](#math-aware-reasoning)
+- [Project Structure](#project-structure)
+- [Dependencies](#dependencies)
+- [Mind Map Reprocessing](#mind-map-reprocessing)
+
+---
+
+## Overview
+
+The system ingests educational lesson content (plain text or fetched from a REST API), analyzes it with AI, and produces five types of structured educational materials:
+
+| Template | Description |
+|----------|-------------|
+| **Question Bank** | Multiple choice, short answer, completion, and true/false questions |
+| **Goal-Based Questions** | Questions aligned to specific learning goals with Bloom's taxonomy levels |
+| **Worksheet** | Structured lesson worksheet with goals, vocabulary, activities, and teacher guidelines |
+| **Summary** | Lesson summary with opening, body, and closing sections |
+| **Mind Map** | Hierarchical concept map in GoJS-compatible JSON format |
+
+The pipeline automatically detects language (Arabic/English), identifies whether content is mathematical, selects the appropriate AI model, and structures output using Pydantic schemas for guaranteed validity.
+
+---
+
+## Architecture
+
+```
+┌──────────────────┐       ┌──────────────────┐
+│  Document REST   │       │     MongoDB      │
+│   API Server     │       │  (ien + ai DBs)  │
+└────────┬─────────┘       └────────┬─────────┘
+         │  fetch documents          │  read goals / store results
+         ▼                           ▼
+┌──────────────────┐       ┌──────────────────┐
+│ DocumentAPIClient│       │  MongoDBClient   │
+└────────┬─────────┘       └────────┬─────────┘
+         │                           │
+         └─────────┬─────────────────┘
+                   ▼
+          ┌─────────────────┐
+          │ BatchProcessor  │   (orchestrates per-document pipeline)
+          └────────┬────────┘
+                   ▼
+          ┌─────────────────────┐
+          │  TemplateGenerator  │   (main orchestrator)
+          │  ├─ ContentProcessor│   (AI content analysis)
+          │  ├─ LanguageDetector│   (Arabic / English)
+          │  └─ InputValidator  │   (input validation)
+          └────────┬────────────┘
+                   │ delegates to
+     ┌─────────────┼────────────────────────┐
+     │             │             │           │           │
+┌────┴────┐  ┌────┴─────┐  ┌───┴───┐  ┌────┴────┐  ┌───┴──────┐
+│Question │  │GoalBased │  │Work-  │  │Summary  │  │MindMap   │
+│Template │  │Template  │  │sheet  │  │Template │  │Template  │
+│(+Math)  │  │          │  │       │  │         │  │(chunked) │
+└─────────┘  └──────────┘  └───────┘  └─────────┘  └──────────┘
+     │             │
+     └─────────────┴── Prompt Templates (Arabic & English)
+                         + Pydantic Models → Structured JSON Output
+```
+
+### Data Flow (Batch Processing)
+
+For each document the pipeline runs in order:
+
+1. **Fetch** — Document content retrieved from REST API
+2. **Analyze** — `ContentProcessor` detects language, subject area, math presence, complexity
+3. **Model Select** — `gpt-5` for mathematical content, `gpt-4o-mini` for everything else
+4. **Generate Summary** → stored in `ai.summaries`
+5. **Resolve Goals** → from MongoDB (`ien.lessonplangoals`) or AI-generated
+6. **Generate Worksheet** → stored in `ai.worksheets` (may refine goals)
+7. **Generate Goal-Based Questions** → stored in `ai.questions`
+8. **Generate Mind Map** → stored in `ai.mindmaps`
+
+---
 
 ## Features
 
-- **Multi-language Support**: Arabic and English
-- **Modular Templates**: Question Bank, Worksheet, Summary, Mind Map
-- **🎯 Goal-Based Question Generation**: NEW! Generate questions specifically aligned with learning objectives
-- **🧠 Mind Map Generation**: NEW! Create detailed mind maps compatible with GoJS visualization
-- **Configurable Question Types**: Multiple choice, short answer, complete, true/false
-- **Difficulty Levels**: 3 configurable difficulty levels
-- **Content-based Generation**: Analyzes input content and goals
-- **Two Generation Modes**:
-  - **Goals Provided**: Generate questions for specific learning goals
-  - **Goals Auto-Generated**: Create goals from content, then generate questions
+- **Bilingual (Arabic-first)** — Every prompt, fallback message, and output exists in both Arabic and English
+- **Math-Aware Model Routing** — Automatically selects a stronger model for mathematical/scientific content
+- **Goal-Based Pedagogy** — Questions organized per learning goal with Bloom's taxonomy cognitive levels
+- **Multi-Pass Mind Maps** — Long content is chunked, independently mapped, then merged with deduplication
+- **Robust JSON Parsing** — 4-stage fallback: direct parse → normalization → `json-repair` → combined
+- **Structured Output** — Pydantic models + `JsonOutputParser` guarantee schema-valid LLM responses
+- **Idempotent Storage** — MongoDB upserts prevent duplicates; `--skip-existing` avoids reprocessing
+- **Thread-Safe Batch Processing** — Parallel workers with lock-protected statistics
+- **Graceful Degradation** — AI failures fall back to rule-based methods for language detection, goal generation, and subject analysis
+- **Configurable Difficulty** — Three difficulty levels with automatic math-aware policies (easy-only for math)
 
-### New: Smart Mind Map Generation Workflow
+---
 
-**Two-Phase Approach for Better Quality:**
+## Prerequisites
 
-1. **AI Generation Phase**: The AI focuses on content and structure, generating only:
-   - `key`: Unique identifier
-   - `parent`: Parent relationship
-   - `text`: Node content
-   - `loc`: Location (root only)
+- **Python 3.10+**
+- **OpenAI API Key** (with access to `gpt-4o-mini` and optionally `gpt-5`)
+- **MongoDB** (optional — required only for bulk processing and goal storage)
+- **Document API server** (optional — required only for bulk processing)
 
-2. **System Enhancement Phase**: Automatic intelligent assignment of:
-   - `brush`: Colors based on node depth (gold → skyblue → darkseagreen → palevioletred...)
-   - `dir`: Balanced left/right distribution with direction propagation
+---
 
-**Benefits:**
-- ✅ Higher quality content structure (AI focuses on what it does best)
-- ✅ Consistent visual styling across all mind maps
-- ✅ Faster generation and lower token usage
-- ✅ Balanced and professional appearance
+## Installation
 
-See docs/MINDMAP_SMART_WORKFLOW.md for detailed documentation and docs/ARCHITECTURE.md for the full system architecture.
+```bash
+# Clone the repository
+git clone <repository-url>
+cd template_generation
 
-### Multi-pass Mind Map Generation
+# Install dependencies
+pip install -r requirements.txt
+```
 
-For long content, the mind map generator can split text into overlapping chunks, generate partial mind maps per chunk, and merge them into one comprehensive map.
+Create a `.env` file in the project root:
 
-Control via environment variables:
+```env
+# Required
+OPENAI_API_KEY=sk-...
 
-- MINDMAP_MULTI_PASS=true | false (default: true)
-- MINDMAP_CHUNK_SIZE_CHARS=1800 (characters per chunk)
-- MINDMAP_CHUNK_OVERLAP_CHARS=250 (overlap between chunks)
-- MINDMAP_DEDUPLICATE_NODES=true | false (deduplicate nodes by normalized text under the same parent)
-- MINDMAP_MAX_NODES=120 (maximum nodes in final output)
-- MINDMAP_COLORS=[...] (color array for depth-based coloring)
+# Optional — Model selection
+OPENAI_MODEL_NORMAL=gpt-4o-mini     # for non-math content
+OPENAI_MODEL_MATH=gpt-5             # for mathematical content
+TEMPERATURE=0.7
 
-Notes:
-- A synthetic root node labeled "Comprehensive Mind Map" (or Arabic equivalent) will appear when merging multiple chunks.
-- Colors and left/right balancing are automatically applied in post-processing.
+# Optional — MongoDB (for bulk processing)
+MONGODB_URI=mongodb://localhost:27017
 
-### Mind Map Professional Mode (Concise Depth-Limited)
+# Optional — Document API (for bulk processing)
+DOCUMENT_API_BASE_URL=http://65.109.31.94:8080
+```
 
-New environment variables to control conciseness and relevance:
+---
+
+## Configuration
+
+All configuration is centralized in `config/settings.py` and loaded from environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MINDMAP_MAX_DEPTH` | 3 | Maximum depth (root=0). 3 = root + level-1 + level-2. Deeper nodes are pruned. |
-| `MINDMAP_EXCLUDE_EXAMPLES` | true | When true, nodes detected as examples / stories / scenarios (multi-lingual keywords) are removed. |
+| `OPENAI_API_KEY` | — | **Required.** Your OpenAI API key |
+| `OPENAI_MODEL_NORMAL` | `gpt-4o-mini` | Model for non-mathematical content |
+| `OPENAI_MODEL_MATH` | `gpt-5` | Model for mathematical/scientific content |
+| `TEMPERATURE` | `0.7` | LLM sampling temperature |
+| `DEFAULT_LANGUAGE` | `arabic` | Default language (`arabic` or `english`) |
+| `MINDMAP_MULTI_PASS` | `true` | Enable multi-pass chunking for long content |
+| `MINDMAP_CHUNK_SIZE_CHARS` | `1800` | Characters per chunk in multi-pass mode |
+| `MINDMAP_CHUNK_OVERLAP_CHARS` | `250` | Overlap between chunks |
+| `MINDMAP_DEDUPLICATE_NODES` | `true` | Deduplicate nodes by text under same parent |
+| `MINDMAP_MAX_NODES` | `120` | Maximum nodes in final mind map |
+| `MINDMAP_MAX_DEPTH` | `3` | Maximum tree depth (root = 0) |
+| `MINDMAP_EXCLUDE_EXAMPLES` | `true` | Filter out example/story nodes |
 
-Prompt instructions (Arabic & English) were updated to:
-- Focus strictly on concepts directly tied to the lesson title
-- Avoid narrative examples, stories, case studies, filler
-- Limit node text to short noun phrases (≈ ≤6 words)
-- Keep balanced 4–7 main branches when possible
+Default question counts: **5** MC, **3** short answer, **2** completion, **3** true/false.  
+Difficulty levels: **1** (easy), **2** (medium), **3** (hard).
 
-Post-processing automatically:
-1. Prunes nodes deeper than `MINDMAP_MAX_DEPTH`
-2. Filters nodes containing example/story keywords (Arabic & English)
-3. Recomputes depth and assigns standardized colors & directions
+---
 
-This yields cleaner, professional classroom-ready mind maps without tangential detail.
+## Quick Start
 
-## 🚀 New Goal-Based Functionality
+### Generate a Question Bank from a File
 
-### Scenario 1: Goals Provided with Content
+```bash
+python main.py questions lesson.txt --goals "Students understand fractions" --mc 5 --sa 3 --tf 4 -o output.json
+```
 
-When you provide specific learning goals, the system generates questions specifically targeting each goal:
+### Generate All Templates in Python
 
 ```python
 from generators.template_generator import TemplateGenerator
 
 generator = TemplateGenerator()
 
-# Your content and goals
-content = "Mathematical content about triangles and geometry..."
-goals = [
-    "Students understand basic geometry concepts",
-    "Students distinguish between triangle types", 
-    "Students apply Pythagorean theorem"
-]
+content = "Your educational lesson content here..."
 
-# Generate goal-based questions
-result = generator.generate_goal_based_questions(
-    content=content,
-    goals=goals,
-    question_counts={
-        "multiple_choice": 6,
-        "short_answer": 4,
-        "complete": 2,
-        "true_false": 2
-    }
-)
+# Question bank
+questions = generator.generate_question_bank(content=content, goals=["Goal 1", "Goal 2"])
 
-# Each question is linked to specific goals
-print(f"Generated {len(result['learning_goals'])} goals")
-print(f"Total questions: {result['_goal_based_metadata']['total_questions']}")
+# Worksheet
+worksheet = generator.generate_worksheet(content=content, goals=["Goal 1"])
 
-# Access goal-question mapping
-for mapping in result['goal_question_mapping']:
-    print(f"Goal: {mapping['goal_text']}")
-    print(f"Questions: {mapping['question_count']}")
+# Summary
+summary = generator.generate_summary(content=content)
+
+# Mind map
+mindmap = generator.generate_mindmap(content=content)
+
+# Goal-based questions
+goal_questions = generator.generate_goal_based_questions(content=content, goals=["Goal 1", "Goal 2"])
 ```
 
-### Scenario 2: No Goals Provided (Auto-Generation)
+---
 
-When you don't provide goals, the system first analyzes content to generate appropriate goals, then creates questions:
+## Template Types
+
+### 1. Question Bank
+
+Generates a bank of diverse question types from lesson content.
+
+**Question types:** Multiple Choice, Short Answer, Completion (fill-in-the-blank), True/False
+
+Each question includes: question text, answer, difficulty level (1–3), and target goal alignment. Multiple choice questions include 4 choices and a 0-based answer key.
 
 ```python
-# Just provide content - no goals
-result = generator.generate_goal_based_questions(
-    content="Physics content about motion and force...",
-    goals=None  # System will generate goals automatically
+result = generator.generate_template(
+    template_type="questions",
+    content="your lesson content",
+    goals=["Goal 1", "Goal 2"],
+    question_counts={"multiple_choice": 5, "short_answer": 3, "complete": 2, "true_false": 4},
+    difficulty_levels=[1, 2, 3]
 )
-
-# System generates goals from content analysis
-generated_goals = result['learning_goals']
-print(f"System generated {len(generated_goals)} goals:")
-for goal in generated_goals:
-    print(f"• {goal['text']}")
 ```
 
-## 📊 Enhanced Output Structure
+### 2. Goal-Based Questions
 
-The goal-based generation provides rich output with clear goal-question relationships:
+An enhanced question generation mode that organizes every question under a specific learning goal with Bloom's taxonomy cognitive level tagging.
+
+**Two scenarios:**
+
+| Scenario | Input | Behavior |
+|----------|-------|----------|
+| Goals provided | `goals=["...", "..."]` | Classifies goals by cognitive level, generates questions per goal |
+| No goals | `goals=None` | Generates a worksheet first to extract goals, then generates questions |
+
+```python
+# Scenario 1: Goals provided
+result = generator.generate_goal_based_questions(
+    content="Geometry lesson about triangles...",
+    goals=["Understand triangle types", "Apply Pythagorean theorem"],
+    question_counts={"multiple_choice": 6, "short_answer": 4, "complete": 2, "true_false": 2}
+)
+
+# Scenario 2: Auto-generate goals
+result = generator.generate_goal_based_questions(
+    content="Physics lesson about motion and force...",
+    goals=None
+)
+```
+
+**Cognitive levels** (Bloom's taxonomy): remember, understand, apply, analyze, evaluate, create — detected from keywords in both Arabic and English.
+
+### 3. Worksheet
+
+Generates a structured lesson worksheet containing:
+- Learning goals
+- Practical applications
+- Vocabulary with definitions
+- Teacher guidelines
+- Optional: structured goals with activities and assessment methods
+
+```python
+worksheet = generator.generate_template(template_type="worksheet", content="...", goals=["..."])
+```
+
+### 4. Summary
+
+Generates a three-part lesson summary:
+- **Opening** — engaging introduction
+- **Summary** — core content distillation
+- **Ending** — closure and takeaway
+
+```python
+summary = generator.generate_template(template_type="summary", content="...")
+```
+
+### 5. Mind Map
+
+Generates a hierarchical concept map in **GoJS TreeModel** format, ready for frontend visualization.
+
+**Key capabilities:**
+- Multi-pass chunking for long content (sentence-boundary aware)
+- Automatic merge and deduplication across chunks
+- Depth-limited tree with configurable max depth
+- Balanced left/right branch distribution
+- Depth-based color assignment
+- Example/story node filtering
+
+```python
+mindmap = generator.generate_template(template_type="mindmap", content="...")
+# Returns: {"class": "go.TreeModel", "nodeDataArray": [...]}
+```
+
+---
+
+## CLI Usage
+
+### Single Document (`main.py`)
+
+```bash
+python main.py <template_type> <content_file> [options]
+```
+
+**Template types:** `questions` | `goal_based_questions` | `worksheet` | `summary` | `mindmap`
+
+| Flag | Description |
+|------|-------------|
+| `--goals "G1" "G2"` | Learning goals (space-separated) |
+| `--mc N` | Number of multiple choice questions (default: 3) |
+| `--sa N` | Number of short answer questions (default: 2) |
+| `--comp N` | Number of completion questions (default: 2) |
+| `--tf N` | Number of true/false questions (default: 2) |
+| `--difficulty 1 2 3` | Difficulty levels to include |
+| `-o FILE` / `--output FILE` | Save result as JSON |
+| `--thinking` | Enable enhanced thinking for math content |
+| `--demo` | Run mathematical reasoning demo |
+
+**Examples:**
+
+```bash
+# Questions with goals
+python main.py questions lesson.txt --goals "Understand fractions" "Apply division" --mc 5 --sa 3
+
+# Goal-based questions (auto-generate goals)
+python main.py goal_based_questions lesson.txt --mc 6 --sa 4
+
+# Worksheet
+python main.py worksheet lesson.txt --goals "Goal 1" "Goal 2"
+
+# Summary saved to file
+python main.py summary lesson.txt -o summary.json
+
+# Mind map
+python main.py mindmap lesson.txt -o mindmap.json
+```
+
+### Bulk Processing (`bulk_generator.py`)
+
+Process all documents from the REST API and store results in MongoDB:
+
+```bash
+python bulk_generator.py [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--max-docs N` | Maximum documents to process |
+| `--page-size N` | API page size |
+| `--start-page N` | Start from this page |
+| `--templates T1 T2` | Template types to generate |
+| `--skip-existing` | Skip documents already processed |
+| `--workers N` | Parallel workers (default: 1 = sequential) |
+| `--uuid UUID` | Process a single document by UUID |
+| `--test-connection` | Test API and MongoDB connectivity |
+| `--stats` | Show current collection statistics |
+| `--dry-run` | Fetch and analyze without generating |
+
+**Examples:**
+
+```bash
+# Process all documents, skip already-done
+python bulk_generator.py --skip-existing
+
+# Process a single document
+python bulk_generator.py --uuid "abc123-def456"
+
+# Generate only summaries and mindmaps
+python bulk_generator.py --templates summary mindmap --max-docs 50
+
+# Test connectivity
+python bulk_generator.py --test-connection
+
+# Parallel processing with 4 workers
+python bulk_generator.py --workers 4 --skip-existing
+```
+
+---
+
+## Python API
+
+### `TemplateGenerator` — Main Entry Point
+
+```python
+from generators.template_generator import TemplateGenerator
+
+generator = TemplateGenerator()
+
+# Universal method
+result = generator.generate_template(
+    template_type="questions",       # questions | goal_based_questions | worksheet | summary | mindmap
+    content="...",
+    goals=["..."],                   # optional
+    question_counts={...},           # optional, for question types
+    difficulty_levels=[1, 2, 3]      # optional
+)
+
+# Convenience methods
+generator.generate_question_bank(content, goals, question_counts, difficulty_levels)
+generator.generate_goal_based_questions(content, goals, question_counts)
+generator.generate_worksheet(content, goals)
+generator.generate_summary(content)
+generator.generate_mindmap(content)
+```
+
+Every result dict includes a `_metadata` key with language, content analysis, and model information.
+
+---
+
+## Output Structures
+
+### Question Bank
+
+```json
+{
+  "multiple_choice": [
+    {
+      "question": "What is 2 + 2?",
+      "choices": ["3", "4", "5", "6"],
+      "answer_key": 1,
+      "difficulty": 1,
+      "target_goal": "Understand addition"
+    }
+  ],
+  "short_answer": [{ "question": "...", "answer": "...", "difficulty": 1 }],
+  "complete": [{ "question": "...", "answer": "...", "difficulty": 1 }],
+  "true_false": [{ "question": "...", "answer": true, "difficulty": 1 }],
+  "_metadata": { "language": "english", "content_analysis": { "..." } }
+}
+```
+
+### Goal-Based Questions
 
 ```json
 {
   "learning_goals": [
-    {
-      "id": "goal_1",
-      "text": "Students understand basic concepts",
-      "priority": 1,
-      "cognitive_level": "understand"
-    }
+    { "id": "goal_1", "text": "...", "priority": 1, "cognitive_level": "understand" }
   ],
   "goal_question_mapping": [
     {
-      "goal_id": "goal_1", 
-      "goal_text": "Students understand basic concepts",
+      "goal_id": "goal_1",
+      "goal_text": "...",
       "question_count": 4,
-      "question_types": {
-        "multiple_choice": 2,
-        "short_answer": 1,
-        "complete": 1,
-        "true_false": 0
-      }
+      "question_types": { "multiple_choice": 2, "short_answer": 1, "complete": 1, "true_false": 0 }
     }
   ],
   "questions_by_goal": {
-    "goal_1": {
-      "multiple_choice": [...],
-      "short_answer": [...],
-      "complete": [...]
-    }
+    "goal_1": { "multiple_choice": ["..."], "short_answer": ["..."] }
   },
-  "multiple_choice": [...], // All questions (traditional structure)
-  "short_answer": [...],
+  "multiple_choice": ["..."],
+  "short_answer": ["..."],
   "_goal_based_metadata": {
     "total_goals": 3,
     "total_questions": 14,
-    "scenario": "goals_provided"
+    "scenario": "goals_provided",
+    "questions_per_goal_distribution": {}
   }
 }
 ```
 
-## Usage Examples
+### Worksheet
 
-### Traditional Generation (Backward Compatible)
-
-```python
-from generators.template_generator import TemplateGenerator
-
-generator = TemplateGenerator()
-
-# Generate question bank (traditional way)
-questions = generator.generate_template(
-    template_type="questions",
-    content="your educational content here",
-    goals=["Students learn addition", "Students understand basic math"],
-    question_counts={
-        "multiple_choice": 5,
-        "short_answer": 3,
-        "complete": 2,
-        "true_false": 4
-    },
-    difficulty_levels=[1, 2, 3]
-)
-
-# Generate worksheet
-worksheet = generator.generate_template(
-    template_type="worksheet",
-    content="your content here",
-    goals=["goal1", "goal2"]
-)
-
-# Generate summary
-summary = generator.generate_template(
-    template_type="summary",
-    content="your content here"
-)
-
-# Generate mind map
-mindmap = generator.generate_template(
-    template_type="mindmap",
-    content="your content here"
-)
-```
-
-### Goal-Based Generation (New)
-
-```python
-# Method 1: Using the main generator
-result = generator.generate_goal_based_questions(
-    content="your content",
-    goals=["goal1", "goal2"]  # Optional
-)
-
-# Method 2: Using template type
-result = generator.generate_template(
-    template_type="goal_based_questions",
-    content="your content",
-    goals=["goal1", "goal2"]  # Optional
-)
-```
-
-### Mind Map Generation (New)
-
-```python
-# Generate mind map compatible with GoJS
-mindmap = generator.generate_mindmap(content="your content")
-
-# Or using template type
-mindmap = generator.generate_template(
-    template_type="mindmap",
-    content="your content"
-)
-
-# The result is a JSON structure ready for GoJS:
-# {
-#   "class": "go.TreeModel",
-#   "nodeDataArray": [
-#     {"key": 0, "text": "Main Topic", "loc": "0 0"},
-#     {"key": 1, "parent": 0, "text": "Subtopic 1", "brush": "skyblue", "dir": "right"},
-#     ...
-#   ]
-# }
-```
-
-## Command Line Usage
-
-### Traditional Templates
-```bash
-# Generate questions with goals
-python main.py questions content.txt --goals "Goal 1" "Goal 2" --mc 5 --sa 3
-
-# Generate worksheet
-python main.py worksheet content.txt --goals "Goal 1" "Goal 2"
-
-# Generate mind map
-python main.py mindmap content.txt
-```
-
-### Goal-Based Generation
-```bash
-# With provided goals
-python main.py goal_based_questions content.txt --goals "Goal 1" "Goal 2" --mc 6 --sa 4
-
-# Without goals (auto-generate)
-python main.py goal_based_questions content.txt --mc 6 --sa 4
-```
-
-## Demo Scripts
-
-### Run Goal-Based Demo
-```bash
-# Run both scenarios
-python goal_based_demo.py
-
-# Run specific scenario
-python goal_based_demo.py scenario1  # Goals provided
-python goal_based_demo.py scenario2  # Goals auto-generated
-```
-
-### Run Usage Examples
-```bash
-python usage_examples.py
-```
-
-## Setup
-
-1. Install requirements: `pip install -r requirements.txt`
-2. Set your OpenAI API key in environment variables or .env file:
-   ```bash
-   export OPENAI_API_KEY="your-api-key-here"
-   ```
-3. Run demos: `python goal_based_demo.py`
-4. Or run main script: `python main.py goal_based_questions sample_content.txt`
-
-## Key Benefits of Goal-Based Generation
-
-1. **🎯 Targeted Assessment**: Each question specifically targets a learning objective
-2. **📊 Clear Mapping**: Know exactly which questions assess which goals
-3. **🔄 Flexible Workflows**: Works with or without predefined goals
-4. **📈 Better Analytics**: Track goal achievement through question performance
-5. **🎨 Adaptive Content**: System can generate appropriate goals from content analysis
-6. **🔗 Cognitive Alignment**: Questions are aligned with appropriate cognitive levels (Bloom's taxonomy)
-
-## Migration Guide
-
-The new functionality is **fully backward compatible**. Your existing code will continue to work unchanged. To adopt goal-based generation:
-
-1. **Replace** `template_type="questions"` with `template_type="goal_based_questions"`
-2. **Or use** the new convenience method: `generate_goal_based_questions()`
-3. **Optional**: Remove goals parameter to let system auto-generate them
-4. **Access** the enhanced output structure for goal-question relationships
-
-## Mind Map Reprocessing (Existing Database)
-
-If you already have mind maps stored in MongoDB (collection `ai.mindmaps`) that were generated before the enhanced post-processing (balanced `dir`, depth pruning, color assignment), you can retrofit them **without re-generating via the LLM**.
-
-### What It Does
-The script `reprocess_mindmaps.py`:
-- Loads each existing record
-- Extracts only: `key`, `text`, `parent` from each node
-- Recomputes: `brush` (color by depth), `dir` (balanced left/right), root `loc` (if missing)
-- Applies depth limit + example filtering (based on current `Settings`)
-- Prunes disallowed nodes (depth > `MINDMAP_MAX_DEPTH`, example/story nodes if enabled)
-- Updates document with:
-  - `mindmap.nodeDataArray` (with new visual fields)
-  - `metadata.reprocessed_at`
-  - `metadata.reprocess_runs` (incremented)
-  - `metadata.reprocess_changes` (summary counts)
-
-It never changes original `key`, `text`, `parent` ordering except when pruning is required by config.
-
-### Dry Run First (Recommended)
-Dry run prints a summary but does NOT modify the database:
-
-```bash
-python reprocess_mindmaps.py --limit 10
-```
-
-Example output line:
-```
-[3] filename=lesson_12.txt doc_uuid=123e... changes={'before_nodes': 58, 'after_nodes': 52, 'dir_assigned': 51, 'brush_assigned': 52, 'root_loc': '0 0'}
-```
-
-### Apply Changes
-```bash
-python reprocess_mindmaps.py --apply
-```
-
-### Filtering Options
-```bash
-python reprocess_mindmaps.py --apply --filename chemistry
-python reprocess_mindmaps.py --apply --custom-id 652fa1c4b3...
-python reprocess_mindmaps.py --apply --contains-text الطاقة
-python reprocess_mindmaps.py --apply --limit 25 --contains-text geometry
-```
-
-Flags:
-- `--limit N`          Process only first N matched documents
-- `--filename SUBSTR`  Case-insensitive substring match on stored filename
-- `--custom-id ID`     Exact match on `custom_id`
-- `--contains-text T`  Any node whose text contains substring T (case-insensitive)
-- `--apply`            Persist changes (omit for dry run)
-
-### Idempotency
-Running multiple times is safe— it recomputes visual fields deterministically from the preserved structure. Pruning decisions remain consistent as long as `Settings` values (depth, exclusion flags) don’t change.
-
-### Configuration Sensitivity
-The script relies on current environment / `Settings` values:
-- `MINDMAP_MAX_DEPTH`
-- `MINDMAP_EXCLUDE_EXAMPLES`
-- `MINDMAP_MAX_NODES`
-- `MINDMAP_COLORS`
-
-Adjust them before running if you want different pruning or color palette.
-
-### Metadata Audit
-Each updated record gains:
 ```json
-"metadata": {
-  ...,
-  "reprocessed_at": "2025-10-05T12:34:56Z",
-  "reprocess_runs": 2,
-  "reprocess_changes": {
-    "before_nodes": 58,
-    "after_nodes": 52,
-    "dir_assigned": 51,
-    "brush_assigned": 52,
-    "root_loc": "0 0"
-  }
+{
+  "goals": ["Goal 1", "Goal 2"],
+  "applications": ["Application 1"],
+  "vocabulary": [{ "term": "Fraction", "definition": "A part of a whole" }],
+  "teacher_guidelines": ["Guideline 1"],
+  "structured_goals": ["..."],
+  "goal_based_activities": ["..."]
 }
 ```
 
-This enables tracking improvements without losing provenance.
+### Summary
 
+```json
+{
+  "opening": "Engaging introduction...",
+  "summary": "Core lesson content...",
+  "ending": "Closing statement..."
+}
+```
+
+### Mind Map (GoJS TreeModel)
+
+```json
+{
+  "class": "go.TreeModel",
+  "nodeDataArray": [
+    { "key": 0, "text": "Main Topic", "loc": "0 0" },
+    { "key": 1, "parent": 0, "text": "Branch 1", "brush": "skyblue", "dir": "right" },
+    { "key": 2, "parent": 0, "text": "Branch 2", "brush": "skyblue", "dir": "left" },
+    { "key": 3, "parent": 1, "text": "Sub-topic", "brush": "darkseagreen", "dir": "right" }
+  ]
+}
+```
+
+---
+
+## Mind Map Advanced Configuration
+
+### Smart Two-Phase Generation
+
+1. **AI Phase** — The LLM generates the semantic structure: `key`, `parent`, `text`
+2. **Post-Processing Phase** — System assigns visual properties: `brush` (color by depth), `dir` (balanced left/right), `loc` (root position)
+
+This yields higher quality content structure while ensuring consistent visual styling.
+
+### Multi-Pass Chunking
+
+For long content, the generator:
+1. Splits text at sentence boundaries into overlapping chunks
+2. Generates a partial mind map per chunk
+3. Merges all maps under a synthetic root node
+4. Deduplicates nodes by normalized text under the same parent
+5. Applies depth pruning and visual properties
+
+### Professional Mode
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `MINDMAP_MAX_DEPTH` | `3` | Prune nodes deeper than this (root = 0) |
+| `MINDMAP_EXCLUDE_EXAMPLES` | `true` | Remove example/story/scenario nodes (Arabic + English keywords) |
+| `MINDMAP_MAX_NODES` | `120` | Cap total nodes in the output |
+
+Post-processing automatically:
+1. Prunes nodes beyond max depth
+2. Filters example/story nodes
+3. Assigns depth-based colors from a configurable palette
+4. Balances left/right distribution using weighted descendant counts
+
+---
+
+## Math-Aware Reasoning
+
+The system automatically detects mathematical content and applies special handling:
+
+- **Model upgrade** — Routes to `gpt-5` (or configured math model) for higher reasoning accuracy
+- **Chain-of-thought prompts** — Structured 5-step reasoning: understand → identify → plan → execute → verify
+- **Solution fields** — Math questions include `solution_outline` (2–4 step plan) and `worked_solution` (formula → substitution → result → verification)
+- **Difficulty policy** — Math content is restricted to easy difficulty only for accuracy
+- **Math tools** — SymPy for symbolic equation solving, numexpr for safe numeric evaluation
+- **Bilingual** — Chain-of-thought templates available in both Arabic and English
+
+---
+
+## Project Structure
+
+```
+template_generation/
+├── main.py                      # CLI: single document generation
+├── bulk_generator.py            # CLI: batch processing with API + MongoDB
+├── requirements.txt             # Python dependencies
+│
+├── config/
+│   ├── settings.py              # Central configuration (env vars)
+│   └── api_config.py            # API configuration (reserved)
+│
+├── clients/
+│   ├── api_client.py            # REST API client (document fetching)
+│   └── mongo_client.py          # MongoDB client (goals + results storage)
+│
+├── generators/
+│   └── template_generator.py    # Main orchestrator (model selection, routing)
+│
+├── processors/
+│   ├── batch_processor.py       # Bulk document pipeline orchestrator
+│   ├── content_processor.py     # AI content analysis + goal generation
+│   └── prompt_builder.py        # Dynamic bilingual prompt assembly
+│
+├── template/
+│   ├── base_template.py         # Abstract base class for all templates
+│   ├── question_template.py     # Question bank generation (+ math agent)
+│   ├── goal_based_template.py   # Goal-centric question generation
+│   ├── worksheet_template.py    # Worksheet generation
+│   ├── summary_template.py      # Summary generation
+│   └── mindmap_template.py      # Mind map generation (multi-pass)
+│
+├── models/
+│   ├── question_models.py       # Pydantic: questions, goals, mappings
+│   ├── worksheet_models.py      # Pydantic: worksheet structure
+│   ├── summary_models.py        # Pydantic: lesson summary
+│   ├── mindmap_models.py        # Pydantic: GoJS-compatible mind map
+│   └── storage_models.py        # Pydantic: MongoDB documents + stats
+│
+├── prompts/
+│   ├── arabic/                  # Arabic prompt templates
+│   │   ├── question_prompts.py
+│   │   ├── worksheet_prompts.py
+│   │   ├── summary_prompts.py
+│   │   └── mindmap_prompts.py
+│   └── english/                 # English prompt templates
+│       ├── question_prompts.py
+│       ├── worksheet_prompts.py
+│       ├── summary_prompts.py
+│       └── mindmap_prompts.py
+│
+├── tools/
+│   └── math_reasoning.py        # SymPy solver, numexpr calculator, CoT prompts
+│
+├── utils/
+│   ├── language_detector.py     # Arabic/English detection (langdetect + fallback)
+│   ├── mindmap_postprocess.py   # Idempotent mind map post-processing
+│   ├── subject_analyzer.py      # Subject analysis (reserved)
+│   └── validators.py            # Input validation
+│
+├── example/                     # Example scripts and demos
+│   ├── complete_example.py
+│   ├── enhanced_math_demo.py
+│   ├── goal_based_demo.py
+│   ├── usage_examples.py
+│   └── view_data.py
+│
+├── tests/
+│   └── test_mindmap_parsing.py  # Mind map parsing tests
+│
+└── docs/
+    ├── ARCHITECTURE.md          # Detailed architecture documentation
+    └── MINDMAP_SMART_WORKFLOW.md # Mind map workflow documentation
+```
+
+---
+
+## Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `langchain` | 0.3.21 | LLM orchestration framework |
+| `langchain-openai` | 0.3.32 | OpenAI integration for LangChain |
+| `langchain-core` | 0.3.75 | Core LangChain abstractions |
+| `pydantic` | 2.7.4 | Data validation and structured LLM output |
+| `openai` | 1.106.1 | OpenAI API client |
+| `python-dotenv` | 1.0.0 | Environment variable loading from `.env` |
+| `langdetect` | 1.0.9 | Language detection |
+| `sympy` | 1.12 | Symbolic math (equation solving) |
+| `numexpr` | 2.11.0 | Safe numeric expression evaluation |
+| `pymongo` | 4.14.0 | MongoDB driver |
+| `requests` | 2.31.0 | HTTP client for document API |
+| `tqdm` | 4.66.1 | Progress bars for batch processing |
+| `tenacity` | 8.2.3 | Retry logic with exponential backoff |
+| `json-repair` | 0.50.0 | Malformed JSON repair from LLM output |
+| `orjson` | *(optional)* | Faster JSON parsing |
+
+---
+
+## Mind Map Reprocessing
+
+Retrofit existing mind maps in MongoDB with the latest post-processing (colors, direction balancing, depth pruning) **without re-generating via the LLM**.
+
+```bash
+# Dry run — preview changes without modifying the database
+python reprocess_mindmaps.py --limit 10
+
+# Apply changes
+python reprocess_mindmaps.py --apply
+
+# Filter by content
+python reprocess_mindmaps.py --apply --filename chemistry
+python reprocess_mindmaps.py --apply --contains-text الطاقة
+python reprocess_mindmaps.py --apply --custom-id 652fa1c4b3...
+```
+
+| Flag | Description |
+|------|-------------|
+| `--apply` | Persist changes (omit for dry run) |
+| `--limit N` | Process only first N documents |
+| `--filename SUBSTR` | Filter by filename substring |
+| `--custom-id ID` | Filter by exact custom_id |
+| `--contains-text T` | Filter by node text content |
+
+Reprocessing is **idempotent** — running multiple times produces identical results. Each run updates audit metadata (`reprocessed_at`, `reprocess_runs`, `reprocess_changes`).
+
+---
+
+## License
+
+*Add your license here.*
