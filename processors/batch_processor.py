@@ -149,7 +149,7 @@ class BatchProcessor:
         filename = document_data.get('filename', 'Unknown')
         custom_id = document_data.get('custom_id')
         collection_id = document_data.get('collection_id')
-        content = document_data.get('content_without_image', '')
+        content = document_data.get('content_without_image', '') or document_data.get('content', '')
         document_had_success = False  # track if at least one template stored successfully
         
         # Skip documents with specific collection IDs
