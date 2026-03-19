@@ -28,7 +28,7 @@ class TemplateGenerator:
         # Initialize language model
         self.model = ChatOpenAI(
             api_key=api_key or Settings.OPENAI_API_KEY,
-            model=model_name or Settings.OPENAI_MODEL,
+            model=model_name or Settings.NON_MATH_MODEL,
             temperature=Settings.TEMPERATURE
         )
         

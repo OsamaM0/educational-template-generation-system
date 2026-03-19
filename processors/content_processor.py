@@ -13,7 +13,7 @@ class ContentProcessor:
         # Use shared LLM if provided, else construct one from settings
         self.model = model or ChatOpenAI(
             api_key=Settings.OPENAI_API_KEY,
-            model=Settings.OPENAI_MODEL,
+            model=Settings.NON_MATH_MODEL,
             temperature=Settings.TEMPERATURE,
         )
     

@@ -10,7 +10,7 @@ class BaseTemplate(ABC):
         """Initialize the template with a language model."""
         self.model = model or ChatOpenAI(
             temperature=Settings.TEMPERATURE,
-            model=Settings.OPENAI_MODEL
+            model=Settings.NON_MATH_MODEL
         )
         self.language = None
         
