@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
-from langchain_openai import ChatOpenAI
 
 from config.settings import Settings
+from clients.llm_client import create_chat_model
 from processors.content_processor import ContentProcessor
 from template.question_template import QuestionTemplate
 from template.worksheet_template import WorksheetTemplate
@@ -25,12 +25,8 @@ class TemplateGenerator:
         # Validate configuration
         Settings.validate_config()
         
-        # Initialize language model
-        self.model = ChatOpenAI(
-            api_key=api_key or Settings.OPENAI_API_KEY,
-            model=model_name or Settings.NON_MATH_MODEL,
-            temperature=Settings.TEMPERATURE
-        )
+        # Initialize language model (OpenRouter)
+        self.model = create_chat_model(api_key=api_key, model_name=model_name)
         
     # Initialize components (share the LLM with the content processor)
         self.content_processor = ContentProcessor(self.model)
@@ -59,12 +55,8 @@ class TemplateGenerator:
         return Settings.MATH_MODEL if is_math else Settings.NON_MATH_MODEL
 
     def _apply_model_to_components(self, model_name: str):
-        """Instantiate a ChatOpenAI with the given model and apply it to all components."""
-        new_model = ChatOpenAI(
-            api_key=Settings.OPENAI_API_KEY,
-            model=model_name,
-            temperature=Settings.TEMPERATURE
-        )
+        """Instantiate a chat model with the given name and apply it to all components."""
+        new_model = create_chat_model(model_name=model_name)
         # Update main reference
         self.model = new_model
         # Update content processor for future analyses

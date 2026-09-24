@@ -3,6 +3,7 @@ import json
 from typing import List, Dict, Any, Optional
 from utils.language_detector import LanguageDetector
 from config.settings import Settings
+from clients.llm_client import create_chat_model
 from langchain_openai import ChatOpenAI
 
 class ContentProcessor:
@@ -10,12 +11,8 @@ class ContentProcessor:
 
     def __init__(self, model: Optional[ChatOpenAI] = None):
         self.language_detector = LanguageDetector()
-        # Use shared LLM if provided, else construct one from settings
-        self.model = model or ChatOpenAI(
-            api_key=Settings.OPENAI_API_KEY,
-            model=Settings.NON_MATH_MODEL,
-            temperature=Settings.TEMPERATURE,
-        )
+        # Use shared LLM if provided, else construct one from settings (OpenRouter)
+        self.model = model or create_chat_model()
     
     def generate_learning_goals(self, content: str, language: Optional[str] = None, count: int = 5) -> List[str]:
         """

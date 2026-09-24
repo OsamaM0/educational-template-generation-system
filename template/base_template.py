@@ -2,16 +2,14 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from config.settings import Settings
+from clients.llm_client import create_chat_model
 
 class BaseTemplate(ABC):
     """Abstract base class for all template types."""
     
     def __init__(self, model: Optional[ChatOpenAI] = None):
         """Initialize the template with a language model."""
-        self.model = model or ChatOpenAI(
-            temperature=Settings.TEMPERATURE,
-            model=Settings.NON_MATH_MODEL
-        )
+        self.model = model or create_chat_model()
         self.language = None
         
     @abstractmethod

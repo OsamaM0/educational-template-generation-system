@@ -201,13 +201,15 @@ class MindMapTemplate(BaseTemplate):
         else:
             main_prompt = ChatPromptTemplate.from_template(prompt_template)
 
-        # Create chain(s) (cache by language & planning usage to avoid recreating per chunk)
+        # Create chain(s) (cached per language & planning usage; rebuilt on model swap)
         cache_key = (self.language, use_planning)
         if not hasattr(self, '_chain_cache'):
             self._chain_cache: Dict[Tuple[Optional[str], bool], Any] = {}
-        if cache_key not in self._chain_cache:
-            self._chain_cache[cache_key] = create_stuff_documents_chain(llm=self.model, prompt=main_prompt)
-        main_chain = self._chain_cache[cache_key]
+        cached = self._chain_cache.get(cache_key)
+        if cached is None or cached[0] is not self.model:
+            cached = (self.model, create_stuff_documents_chain(llm=self.model, prompt=main_prompt))
+            self._chain_cache[cache_key] = cached
+        main_chain = cached[1]
         docs = [Document(page_content=content)]
 
         try:
@@ -216,9 +218,11 @@ class MindMapTemplate(BaseTemplate):
                 try:
                     # Planning chain is lighter; cache separately
                     p_cache_key = (self.language, 'planning')
-                    if p_cache_key not in self._chain_cache:
-                        self._chain_cache[p_cache_key] = create_stuff_documents_chain(llm=self.model, prompt=planning_prompt)
-                    planning_chain = self._chain_cache[p_cache_key]
+                    p_cached = self._chain_cache.get(p_cache_key)
+                    if p_cached is None or p_cached[0] is not self.model:
+                        p_cached = (self.model, create_stuff_documents_chain(llm=self.model, prompt=planning_prompt))
+                        self._chain_cache[p_cache_key] = p_cached
+                    planning_chain = p_cached[1]
                     _ = planning_chain.invoke({"context": docs})
                 except Exception as e:
                     logger.debug(f"Planning phase failed/ignored: {e}")

@@ -7,10 +7,13 @@ load_dotenv()
 class Settings:
     """Configuration settings for the template generation system."""
     
-    # OpenAI Configuration
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    NON_MATH_MODEL = os.getenv("OPENAI_MODEL_NORMAL", "gpt-4o-mini")
-    MATH_MODEL = os.getenv("OPENAI_MODEL_MATH", "gpt-5")
+    # OpenRouter Configuration (OpenAI-compatible API)
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+    OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+    # Model routing: math content -> MATH_MODEL, everything else -> NON_MATH_MODEL
+    NON_MATH_MODEL = os.getenv("LLM_MODEL_NORMAL", "z-ai/glm-5.3-flash")    # Z.ai: GLM 5.3 Flash
+    MATH_MODEL = os.getenv("LLM_MODEL_MATH", "xiaomi/mimo-v2.6-pro")        # Xiaomi: MiMo-V2.6-Pro
     TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
     
     # Language Configuration
@@ -58,6 +61,6 @@ class Settings:
     @classmethod
     def validate_config(cls):
         """Validate that required configuration is present."""
-        if not cls.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
+        if not cls.OPENROUTER_API_KEY:
+            raise ValueError("OPENROUTER_API_KEY environment variable is required")
         return True

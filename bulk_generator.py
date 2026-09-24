@@ -37,7 +37,7 @@ def validate_environment():
     except Exception as e:
         print(f"❌ Environment validation failed: {str(e)}")
         print("\n💡 Make sure to:")
-        print("   1. Set OPENAI_API_KEY environment variable")
+        print("   1. Set OPENROUTER_API_KEY environment variable")
         print("   2. Install requirements: pip install -r requirements.txt")
         return False
 

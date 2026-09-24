@@ -1,0 +1,139 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "TahderPlus Educational Template Generation Flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "output": "docs/project-flow.html"
+  },
+  "lanes": [
+    { "id": "intake", "label": "Input & Orchestration" },
+    { "id": "intelligence", "label": "Content Intelligence" },
+    { "id": "generation", "label": "Template Generation" },
+    { "id": "persistence", "label": "Persistence & Reporting" }
+  ],
+  "mainPath": [
+    "lesson_input",
+    "batch_or_cli",
+    "content_analysis",
+    "model_router",
+    "generation_pipeline",
+    "structured_outputs",
+    "mongo_and_report"
+  ],
+  "semanticChecks": {
+    "allowedRoots": ["lesson_input"],
+    "allowedTerminals": ["mongo_and_report"],
+    "requiredEdges": [
+      { "from": "lesson_input", "to": "batch_or_cli" },
+      { "from": "batch_or_cli", "to": "content_analysis" },
+      { "from": "structured_outputs", "to": "mongo_and_report" }
+    ],
+    "requiredPaths": [
+      { "from": "lesson_input", "to": "mongo_and_report" }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "lesson_input",
+      "lane": "intake",
+      "col": 0,
+      "type": "external",
+      "label": "File / Document REST API",
+      "width": 184
+    },
+    {
+      "id": "batch_or_cli",
+      "lane": "intake",
+      "col": 1,
+      "type": "backend",
+      "label": "Ingest, Validate & Skip",
+      "width": 184
+    },
+    {
+      "id": "content_analysis",
+      "lane": "intelligence",
+      "col": 1,
+      "type": "backend",
+      "label": "Analyze Language & Math",
+      "width": 202
+    },
+    {
+      "id": "model_router",
+      "lane": "intelligence",
+      "col": 2,
+      "type": "cloud",
+      "label": "Route Math / Normal Model",
+      "width": 190
+    },
+    {
+      "id": "generation_pipeline",
+      "lane": "generation",
+      "col": 2,
+      "type": "backend",
+      "label": "Summary + Goals / Worksheet",
+      "width": 220
+    },
+    {
+      "id": "structured_outputs",
+      "lane": "generation",
+      "col": 3,
+      "type": "backend",
+      "label": "Questions + Mind Map JSON",
+      "width": 202
+    },
+    {
+      "id": "mongo_and_report",
+      "lane": "persistence",
+      "col": 3,
+      "type": "database",
+      "label": "MongoDB Upserts & Stats",
+      "width": 210
+    }
+  ],
+  "edges": [
+    {
+      "id": "load_content",
+      "from": "lesson_input",
+      "to": "batch_or_cli",
+      "role": "main",
+      "variant": "default"
+    },
+    {
+      "id": "dispatch_document",
+      "from": "batch_or_cli",
+      "to": "content_analysis",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "derive_signals",
+      "from": "content_analysis",
+      "to": "model_router",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "start_generation",
+      "from": "model_router",
+      "to": "generation_pipeline",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "emit_structured_artifacts",
+      "from": "generation_pipeline",
+      "to": "structured_outputs",
+      "role": "main",
+      "variant": "default"
+    },
+    {
+      "id": "persist_and_report",
+      "from": "structured_outputs",
+      "to": "mongo_and_report",
+      "role": "main",
+      "variant": "emphasis"
+    }
+  ]
+}

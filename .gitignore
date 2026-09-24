@@ -61,6 +61,15 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# One-off run artifacts (bulk/repair run outputs)
+regen_chunk_*.json
+doc_ids.json
+both_wrong_uuids.json
+labels_only_uuids.json
+retry_worksheets.json
+affected_lessons_review.csv
+docs/project-flow.visual-check.*.png
+
 # Flask stuff:
 instance/
 .webassets-cache

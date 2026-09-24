@@ -15,13 +15,13 @@ from models.storage_models import ProcessingStats, DocumentInfo
 class BatchProcessor:
     """Handles batch processing of documents for template generation."""
     
-    def __init__(self, api_client: DocumentAPIClient, mongo_client: MongoDBClient, 
+    def __init__(self, api_client: Optional[DocumentAPIClient], mongo_client: MongoDBClient, 
                  template_generator: TemplateGenerator):
         """
         Initialize batch processor.
         
         Args:
-            api_client: Document API client
+            api_client: Document API client (optional; only needed for API-driven batches)
             mongo_client: MongoDB client
             template_generator: Template generator instance
         """
@@ -66,6 +66,30 @@ class BatchProcessor:
             max_documents=max_documents,
             start_page=start_page
         )
+        
+        return self.process_documents(documents, template_types, skip_existing, max_workers)
+    
+    def process_documents(self, documents: List[Dict[str, Any]],
+                          template_types: List[str] = None,
+                          skip_existing: bool = True,
+                          max_workers: int = 1) -> ProcessingStats:
+        """
+        Run the Full AI Cycle over an in-memory list of documents.
+        
+        Works with documents from any source (the document API or
+        questions-as-content bundles built from MongoDB).
+        
+        Args:
+            documents: Document dicts {uuid, idx, custom_id, filename, content}
+            template_types: Types of templates to generate
+            skip_existing: Skip documents that already have generated content
+            max_workers: Number of parallel workers (1 for sequential processing)
+            
+        Returns:
+            Processing statistics
+        """
+        if template_types is None:
+            template_types = ['questions', 'worksheets', 'summaries', 'mindmaps']
         
         self.stats.total_documents = len(documents)
         
