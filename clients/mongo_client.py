@@ -1,13 +1,21 @@
 """
 MongoDB client for fetching goals and storing generated templates.
 """
+import os
+
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from typing import Dict, List, Any, Optional
 from bson import ObjectId
 from datetime import datetime
 
-DEFAULT_MONGODB_URI = "mongodb://ai:VgjVpcllJjhYy2c@65.109.31.94:27017/ai?directConnection=true&serverSelectionTimeoutMS=2000&authSource=admin"
+load_dotenv()
+
+# Fallback used only when MONGODB_URI is not set in the environment / .env
+_FALLBACK_MONGODB_URI = "mongodb://ai:VgjVpcllJjhYy2c@65.109.31.94:27017/ai?directConnection=true&serverSelectionTimeoutMS=2000&authSource=admin"
+
+DEFAULT_MONGODB_URI = os.getenv("MONGODB_URI") or _FALLBACK_MONGODB_URI
 
 AI_TEMPLATE_COLLECTIONS = ("summaries", "worksheets", "questions", "mindmaps")
 

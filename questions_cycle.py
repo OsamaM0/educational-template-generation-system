@@ -22,6 +22,7 @@ Usage examples:
     python questions_cycle.py --dry-run
     python questions_cycle.py --limit 5
     python questions_cycle.py --lesson-source-id 152225
+    python questions_cycle.py --skip mindmaps
 """
 import argparse
 import os
@@ -65,6 +66,9 @@ def parse_args() -> argparse.Namespace:
                         default=["summaries", "worksheets", "questions", "mindmaps"],
                         choices=["summaries", "worksheets", "questions", "mindmaps"],
                         help="Templates to generate (questions auto-adds summaries + worksheets)")
+    parser.add_argument("--skip", nargs="*", default=[],
+                        choices=["summaries", "worksheets", "questions", "mindmaps"],
+                        help="Templates to skip entirely (e.g. --skip mindmaps worksheets)")
     parser.add_argument("--skip-existing", action="store_true",
                         help="Skip templates that already exist in the ai database")
     parser.add_argument("--workers", type=int, default=1,
@@ -107,6 +111,8 @@ def build_lesson_documents(
     lesson_source_ids: Optional[List[int]] = None,
     min_questions: int = 1,
     limit: Optional[int] = None,
+    template_types: Optional[List[str]] = None,
+    skip_templates: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Fill the missing AI templates of every AI lesson with 0 questions.
 
@@ -121,6 +127,8 @@ def build_lesson_documents(
     remote round-trips to one query per collection.
     """
     wanted = set(lesson_source_ids) if lesson_source_ids else None
+    requested = set(template_types) if template_types else set(AI_TEMPLATE_COLLECTIONS)
+    skipped = set(skip_templates or ())
     uuid_sets = mongo.get_template_uuid_sets()
     file_infos = mongo.get_all_lesson_file_info()
     candidates = mongo.find_documents_missing_questions()
@@ -134,7 +142,8 @@ def build_lesson_documents(
         file_info = file_infos.get(lesson_id)
         if not file_info:
             continue
-        missing = [t for t in AI_TEMPLATE_COLLECTIONS if ai_doc["uuid"] not in uuid_sets[t]]
+        missing = [t for t in AI_TEMPLATE_COLLECTIONS
+                   if ai_doc["uuid"] not in uuid_sets[t] and t in requested and t not in skipped]
         if not missing:
             continue
         lesson_title = file_info.get("title") or ai_doc.get("filename")
@@ -187,6 +196,8 @@ def main() -> int:
             lesson_source_ids=args.lesson_source_id or None,
             min_questions=args.min_questions,
             limit=args.limit,
+            template_types=args.templates,
+            skip_templates=args.skip,
         )
         if not documents:
             print("❌ No AI lessons with 0 questions (with ien-v2 info + tahdiri questions) found")
