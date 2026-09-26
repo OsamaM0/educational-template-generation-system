@@ -175,6 +175,10 @@ class BatchProcessor:
         collection_id = document_data.get('collection_id')
         content = document_data.get('content_without_image', '') or document_data.get('content', '')
         document_had_success = False  # track if at least one template stored successfully
+        # Explicit per-document targets (fill-missing cycle) override the batch list
+        document_types = document_data.get('template_types')
+        if document_types:
+            template_types = document_types
         
         # Skip documents with specific collection IDs
         skip_collection_ids = [
@@ -216,7 +220,8 @@ class BatchProcessor:
         # Enforce generation order: summary -> worksheet -> questions -> mindmap
         requested = set([t if t.endswith('s') else f"{t}s" for t in template_types])
         # If questions requested, also generate summary and worksheet as prerequisites
-        if "questions" in requested:
+        # (skipped when the caller pins explicit per-document targets)
+        if "questions" in requested and not document_types:
             requested.update({"summaries", "worksheets"})
         ordered_types = [t for t in ["summaries", "worksheets", "questions", "mindmaps"] if t in requested]
         # Mark that we are attempting this document (if any ordered types)
@@ -242,10 +247,13 @@ class BatchProcessor:
                 with self._lock:
                     self.stats.add_template_failure("summaries")
 
-        # Step 2: Goals (DB -> AI)
+        # Step 2: Goals (DB -> stored worksheet -> AI)
         goals = []
         if custom_id:
             goals = self.mongo_client.get_goals_by_custom_id(custom_id)
+        if not goals:
+            stored_worksheet = self.mongo_client.get_stored_record(document_uuid, "worksheets")
+            goals = list((stored_worksheet or {}).get("goals") or [])
         if not goals:
             # AI-generate goals from content (no default static list)
             try:
