@@ -469,6 +469,18 @@ class MongoDBClient:
                 for doc in self.storage_db[collection_name].find({}, {"document_uuid": 1})
             }
         return sets
+
+    def get_generated_lesson_ids(self) -> set:
+        """Lesson ids (str) that already have at least one AI template record."""
+        ids = set()
+        if self.storage_db is None:
+            return ids
+        for collection_name in AI_TEMPLATE_COLLECTIONS:
+            for doc in self.storage_db[collection_name].find({}, {"document_idx": 1}):
+                idx = short_idx(doc.get("document_idx"))
+                if idx is not None:
+                    ids.add(str(idx))
+        return ids
     
     def get_all_lesson_file_info(self) -> Dict[int, Dict[str, Any]]:
         """Bulk-load `ien-v2.lessons` file info: {lesson_id: info}.

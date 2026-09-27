@@ -224,6 +224,65 @@ class TahdiriQuestionsClient:
         ).sort("type", 1)
         return list(cursor)
 
+    def get_source_ids_by_api_ids(self, api_lesson_ids: List[Any]) -> Dict[str, List[int]]:
+        """Map ien-v2 lessonId -> tahdiri `lessons.sourceId` list.
+
+        The join key between the two systems is `lessons.apiSourceId`
+        (= ien-v2 `lessons.lessonId`); `questions.lessonSourceId` refers to
+        tahdiri's own `lessons.sourceId`. One api id may map to several
+        tahdiri lessons (split lessons).
+        """
+        mapping: Dict[str, List[int]] = {}
+        if self.db is None or not api_lesson_ids:
+            return mapping
+        # match both int and str storage forms of the same id
+        ids = []
+        for value in api_lesson_ids:
+            ids.append(value)
+            ids.append(str(value))
+            try:
+                ids.append(int(value))
+            except (TypeError, ValueError):
+                pass
+        for start in range(0, len(ids), 200):
+            chunk = ids[start:start + 200]
+            for lesson in self.db["lessons"].find(
+                {"apiSourceId": {"$in": chunk}}, {"sourceId": 1, "apiSourceId": 1}
+            ):
+                api_id = lesson.get("apiSourceId")
+                source_id = lesson.get("sourceId")
+                if api_id is not None and source_id is not None:
+                    mapping.setdefault(str(api_id), []).append(int(source_id))
+        return mapping
+
+    def get_questions_for_api_lesson(self, lesson_id: Any) -> List[Dict[str, Any]]:
+        """Fetch questions of one ien-v2 lesson (joined via lessons.apiSourceId)."""
+        source_ids = self.get_source_ids_by_api_ids([lesson_id]).get(str(lesson_id), [])
+        questions: List[Dict[str, Any]] = []
+        for source_id in source_ids:
+            questions.extend(self.get_questions_by_lesson(source_id))
+        return questions
+
+    def get_questions_by_lessons(
+        self, lesson_source_ids: List[int], chunk_size: int = 200
+    ) -> Dict[int, List[Dict[str, Any]]]:
+        """Bulk-fetch questions for many lessons, grouped by lessonSourceId.
+
+        Chunked `$in` scans keep remote round-trips low (one per 200 lessons)
+        and bound cursor memory.
+        """
+        grouped: Dict[int, List[Dict[str, Any]]] = {}
+        if self.db is None or not lesson_source_ids:
+            return grouped
+        for start in range(0, len(lesson_source_ids), chunk_size):
+            chunk = lesson_source_ids[start:start + chunk_size]
+            cursor = self.db["questions"].find(
+                {"lessonSourceId": {"$in": chunk}, "active": {"$ne": False}}
+            ).sort("type", 1)
+            for question in cursor:
+                grouped.setdefault(question.get("lessonSourceId"), []).append(question)
+        return grouped
+
     def get_lesson_documents(
         self,
         lesson_source_ids: Optional[List[int]] = None,

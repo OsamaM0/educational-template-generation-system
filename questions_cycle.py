@@ -43,6 +43,7 @@ from generators.template_generator import TemplateGenerator
 from processors.batch_processor import BatchProcessor
 
 PREVIEW_LINES = 8
+QUESTION_FETCH_CHUNK = 100  # lessons per bulk questions query
 
 
 def tahdiri_source_id(document_idx: Any) -> Optional[int]:
@@ -91,6 +92,93 @@ def print_dry_run_preview(documents: List[dict]):
         for line in doc["content"].splitlines()[:PREVIEW_LINES]:
             print(f"   {line}")
         print("   ...")
+
+
+def build_new_lesson_documents(
+    mongo: MongoDBClient,
+    tahdiri: TahdiriQuestionsClient,
+    wanted: Optional[set],
+    requested: set,
+    skipped: set,
+    min_questions: int,
+    file_infos: Dict[int, Dict[str, Any]],
+    uuid_sets: Dict[str, set],
+    covered_uuids: set,
+    limit: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Documents for ien-v2 lessons without a complete AI record.
+
+    Universe: ien-v2 lessonIds (the master list) that either have no AI
+    record at all or only a partial synthetic one. Content source: lesson
+    title + the lesson's tahdiri questions, joined via tahdiri
+    `lessons.apiSourceId` == ien-v2 `lessonId`. Identity is synthesized
+    (uuid `tahdiri-<lessonId>`) so re-runs upsert the same records; only the
+    templates missing for that uuid are targeted, so interrupted runs resume
+    cleanly. Lessons with no tahdiri questions are skipped (title alone is
+    not enough content to generate from).
+    """
+    targets = [t for t in AI_TEMPLATE_COLLECTIONS if t in requested and t not in skipped]
+    if not targets:
+        return []
+
+    generated_ids = mongo.get_generated_lesson_ids()
+    all_uuids = set().union(*uuid_sets.values()) if uuid_sets else set()
+
+    pending = []
+    for lesson_id in sorted(file_infos, key=str):
+        if wanted is not None and lesson_id not in wanted:
+            continue
+        doc_uuid = f"tahdiri-{lesson_id}"
+        if doc_uuid in all_uuids:
+            if doc_uuid in covered_uuids:
+                continue  # fill-missing pass already handles this record
+        elif str(lesson_id) in generated_ids:
+            continue  # has an original-uuid record; the fill-missing pass owns it
+        missing = [t for t in targets if doc_uuid not in uuid_sets.get(t, set())]
+        if missing:
+            pending.append((lesson_id, doc_uuid, missing))
+
+    # Fetch questions lazily per chunk so limit-sized runs stay fast
+    documents: List[Dict[str, Any]] = []
+    for start in range(0, len(pending), QUESTION_FETCH_CHUNK):
+        chunk = pending[start:start + QUESTION_FETCH_CHUNK]
+        source_map = tahdiri.get_source_ids_by_api_ids([item[0] for item in chunk])
+        source_ids = [sid for sids in source_map.values() for sid in sids]
+        questions_by_source = tahdiri.get_questions_by_lessons(source_ids)
+        for lesson_id, doc_uuid, missing in chunk:
+            if limit is not None and len(documents) >= limit:
+                return documents
+            questions = []
+            for source_id in source_map.get(str(lesson_id), []):
+                questions.extend(questions_by_source.get(source_id, []))
+            if len(questions) < min_questions:
+                continue
+            documents.append(_new_lesson_document(
+                lesson_id, file_infos.get(lesson_id) or {}, questions, missing,
+            ))
+    return documents
+
+
+def _new_lesson_document(
+    lesson_id: Any,
+    file_info: Dict[str, Any],
+    questions: List[Dict[str, Any]],
+    targets: List[str],
+) -> Dict[str, Any]:
+    """Shape one no-AI-record lesson as a generation document."""
+    lesson_title = file_info.get("title") or f"Lesson {lesson_id}"
+    return {
+        "uuid": f"tahdiri-{lesson_id}",
+        "idx": str(lesson_id),
+        "custom_id": str(lesson_id),
+        "filename": lesson_title,
+        "content": build_lesson_content(
+            {"title": lesson_title, "unit_title": file_info.get("extended_title")},
+            questions,
+        ),
+        "template_types": targets,
+        "content_source": "tahdiri-new",
+    }
 
 
 def summary_to_text(title: str, summary_payload: Optional[Dict[str, Any]]) -> str:
@@ -154,7 +242,7 @@ def build_lesson_documents(
             targets = [t for t in missing if t != "summaries"]
             content_source = "ai-summary"
         else:
-            questions = tahdiri.get_questions_by_lesson(lesson_id)
+            questions = tahdiri.get_questions_for_api_lesson(lesson_id)
             if len(questions) < min_questions:
                 continue
             content = build_lesson_content(
@@ -177,6 +265,20 @@ def build_lesson_documents(
         })
         if limit and len(documents) >= limit:
             break
+
+    # Lessons with NO AI record at all: title + tahdiri questions = content
+    remaining = max(limit - len(documents), 0) if limit else None
+    if not limit or remaining:
+        new_documents = build_new_lesson_documents(
+            mongo, tahdiri,
+            wanted=wanted, requested=requested, skipped=skipped,
+            min_questions=min_questions, file_infos=file_infos,
+            uuid_sets=uuid_sets, covered_uuids={d["uuid"] for d in documents},
+            limit=remaining,
+        )
+        if new_documents:
+            print(f"🆕 {len(new_documents)} lesson(s) with no AI record yet (title + tahdiri questions)")
+        documents.extend(new_documents)
     return documents
 
 
