@@ -15,6 +15,10 @@ class Settings:
     NON_MATH_MODEL = os.getenv("LLM_MODEL_NORMAL", "z-ai/glm-5.3-flash")    # Z.ai: GLM 5.3 Flash
     MATH_MODEL = os.getenv("LLM_MODEL_MATH", "xiaomi/mimo-v2.6-pro")        # Xiaomi: MiMo-V2.6-Pro
     TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
+
+    # Network robustness: one stalled LLM call must not block a worker for long
+    LLM_TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "180"))
+    LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "2"))
     
     # Language Configuration
     SUPPORTED_LANGUAGES = ["arabic", "english"]

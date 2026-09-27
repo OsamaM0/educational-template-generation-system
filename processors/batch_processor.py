@@ -16,7 +16,8 @@ class BatchProcessor:
     """Handles batch processing of documents for template generation."""
     
     def __init__(self, api_client: Optional[DocumentAPIClient], mongo_client: MongoDBClient, 
-                 template_generator: TemplateGenerator):
+                 template_generator: TemplateGenerator,
+                 generator_factory: Optional[Callable[[], TemplateGenerator]] = None):
         """
         Initialize batch processor.
         
@@ -24,10 +25,14 @@ class BatchProcessor:
             api_client: Document API client (optional; only needed for API-driven batches)
             mongo_client: MongoDB client
             template_generator: Template generator instance
+            generator_factory: Builds one isolated generator per parallel worker thread
+                (a generator mutates per-call state — model routing, language — so
+                threads must not share one). Defaults to reusing `template_generator`.
         """
         self.api_client = api_client
         self.mongo_client = mongo_client
         self.template_generator = template_generator
+        self.generator_factory = generator_factory
         self.stats = ProcessingStats()
         self._lock = threading.Lock()
     
@@ -132,13 +137,25 @@ class BatchProcessor:
                     # Small delay to avoid overwhelming services
                     time.sleep(0.1)
     
+    def _new_generator(self) -> TemplateGenerator:
+        """Build a worker-local generator; falls back to the shared instance."""
+        return self.generator_factory() if self.generator_factory else self.template_generator
+
     def _process_documents_parallel(self, documents: List[Dict[str, Any]], 
                                   template_types: List[str], skip_existing: bool, max_workers: int):
-        """Process documents in parallel."""
+        """Process documents in parallel, one generator per worker thread."""
+        thread_state = threading.local()
+
+        def process(document: Dict[str, Any]) -> None:
+            generator = getattr(thread_state, "generator", None)
+            if generator is None:
+                generator = thread_state.generator = self._new_generator()
+            self._process_single_document(document, template_types, skip_existing, generator)
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
             futures = {
-                executor.submit(self._process_single_document, doc, template_types, skip_existing): doc 
+                executor.submit(process, doc): doc 
                 for doc in documents
             }
             
@@ -160,7 +177,8 @@ class BatchProcessor:
                         pbar.update(1)
     
     def _process_single_document(self, document_data: Dict[str, Any], 
-                               template_types: List[str], skip_existing: bool):
+                               template_types: List[str], skip_existing: bool,
+                               generator: Optional[TemplateGenerator] = None):
         """
         Process a single document.
         
@@ -168,7 +186,9 @@ class BatchProcessor:
             document_data: Document information
             template_types: Types of templates to generate
             skip_existing: Skip if document already processed
+            generator: Worker-local generator (defaults to the shared instance)
         """
+        generator = generator or self.template_generator
         document_uuid = document_data.get('uuid')
         filename = document_data.get('filename', 'Unknown')
         custom_id = document_data.get('custom_id')
@@ -235,7 +255,7 @@ class BatchProcessor:
             try:
                 with self._lock:
                     self.stats.add_attempt("summaries")
-                summary_result = self.template_generator.generate_summary(content=content)
+                summary_result = generator.generate_summary(content=content)
                 if self.mongo_client.store_summary(document_data, summary_result):
                     with self._lock:
                         self.stats.add_success("summaries")
@@ -257,7 +277,7 @@ class BatchProcessor:
         if not goals:
             # AI-generate goals from content (no default static list)
             try:
-                goals = self.template_generator.content_processor.generate_learning_goals(content, count=5)
+                goals = generator.content_processor.generate_learning_goals(content, count=5)
                 print(f"🎯 AI-generated {len(goals)} goals")
             except Exception as e:
                 print(f"❌ Failed to AI-generate goals, proceeding with empty goals: {str(e)}")
@@ -269,7 +289,7 @@ class BatchProcessor:
             try:
                 with self._lock:
                     self.stats.add_attempt("worksheets")
-                worksheet_result = self.template_generator.generate_worksheet(content=content, goals=goals)
+                worksheet_result = generator.generate_worksheet(content=content, goals=goals)
                 # Prefer structured goals if provided by template
                 refined_goals = []
                 if isinstance(worksheet_result, dict):
@@ -304,7 +324,7 @@ class BatchProcessor:
             try:
                 with self._lock:
                     self.stats.add_attempt("questions")
-                questions_result = self.template_generator.generate_goal_based_questions(
+                questions_result = generator.generate_goal_based_questions(
                     content=content,
                     goals=goals,
                     question_counts={
@@ -331,7 +351,7 @@ class BatchProcessor:
             try:
                 with self._lock:
                     self.stats.add_attempt("mindmaps")
-                mindmap_result = self.template_generator.generate_mindmap(content=content)
+                mindmap_result = generator.generate_mindmap(content=content)
                 if self.mongo_client.store_mindmap(document_data, mindmap_result):
                     with self._lock:
                         self.stats.add_success("mindmaps")

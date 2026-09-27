@@ -11,6 +11,7 @@ set -u
 cd "$(dirname "$0")"
 if [ -x .venv/bin/python ]; then PY=${PY:-.venv/bin/python}; else PY=${PY:-python3}; fi
 WORKERS=${WORKERS:-16}
+CHUNK_WORKERS=${CHUNK_WORKERS:-2}   # parallel lessons inside each chunk process
 mkdir -p logs
 
 echo "[batch] building candidate lesson ids (bulk scans)..."
@@ -36,7 +37,7 @@ split -n l/$WORKERS -d /tmp/etgs_ids.txt /tmp/etgs_chunk_
 
 for f in /tmp/etgs_chunk_*; do
     n=${f##*_}
-    $PY -u questions_cycle.py --lesson-source-id $(cat "$f" | tr '\n' ' ') > "logs/chunk$n.log" 2>&1 &
+    $PY -u questions_cycle.py --lesson-source-id $(cat "$f" | tr '\n' ' ') --workers "$CHUNK_WORKERS" > "logs/chunk$n.log" 2>&1 &
 done
 wait
 

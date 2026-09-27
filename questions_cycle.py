@@ -215,6 +215,7 @@ def main() -> int:
             api_client=None,
             mongo_client=mongo,
             template_generator=TemplateGenerator(),
+            generator_factory=TemplateGenerator,
         )
         processor.process_documents(
             documents,

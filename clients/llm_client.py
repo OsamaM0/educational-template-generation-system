@@ -36,4 +36,6 @@ def create_chat_model(
         base_url=Settings.OPENROUTER_BASE_URL,
         model=model_name or Settings.NON_MATH_MODEL,
         temperature=Settings.TEMPERATURE if temperature is None else temperature,
+        timeout=Settings.LLM_TIMEOUT_SECONDS,
+        max_retries=Settings.LLM_MAX_RETRIES,
     )
