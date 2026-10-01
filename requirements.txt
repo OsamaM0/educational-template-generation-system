@@ -14,3 +14,5 @@ tenacity==8.2.3
 json-repair==0.50.0
 # Optional (faster JSON parsing if installed) - not strictly required
 # orjson==3.10.7
+# Knowledge-production record validation
+jsonschema>=4.21,<5

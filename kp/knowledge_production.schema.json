@@ -1,0 +1,1087 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/knowledge_production.schema.json",
+  "title": "ai.knowledge_productions — one record per lesson",
+  "description": "Lesson-specific knowledge production: open educational forms and sections. Legacy archetype records remain readable.",
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "n",
+        "title",
+        "scene",
+        "question_ref",
+        "question_text",
+        "answer_text",
+        "mode",
+        "yields",
+        "explanation"
+      ],
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "question_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "id as source.mjs derives it: mc_1, tf_2, cp_1, sa_1 …"
+        },
+        "question_text": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "answer_text": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "reused",
+            "adapted",
+            "new"
+          ]
+        },
+        "yields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {
+            "tokens": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "bank": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "finding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "component": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "layer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "explanation": {
+          "type": "string"
+        }
+      }
+    },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "goal_id",
+        "goal_text",
+        "concepts",
+        "idea",
+        "intro",
+        "stages",
+        "payoff",
+        "final_task",
+        "reveal",
+        "registration",
+        "review"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "goal_id": {
+          "type": "string"
+        },
+        "goal_text": {
+          "type": "string"
+        },
+        "concepts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "idea": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "archetype",
+            "title",
+            "subtitle",
+            "kind_line",
+            "stage_label",
+            "premise",
+            "concept_transfer"
+          ],
+          "properties": {
+            "archetype": {
+              "type": "string",
+              "enum": [
+                "cipher",
+                "case_file",
+                "blueprint"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "subtitle": {
+              "type": "string"
+            },
+            "kind_line": {
+              "type": "string"
+            },
+            "stage_label": {
+              "type": "string"
+            },
+            "premise": {
+              "type": "string"
+            },
+            "concept_transfer": {
+              "type": "string"
+            }
+          }
+        },
+        "intro": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "story",
+            "objective",
+            "rules_title",
+            "rules"
+          ],
+          "properties": {
+            "story": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "objective": {
+              "type": "string"
+            },
+            "rules_title": {
+              "type": "string"
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/stage"
+          }
+        },
+        "payoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "title",
+            "instruction"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "cipher",
+                "case_file",
+                "blueprint"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "instruction": {
+              "type": "string"
+            },
+            "solution": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "meaning": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "columns": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "verdict": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "layers": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "final_task": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "prompt",
+            "question_refs",
+            "questions",
+            "deliverable",
+            "rubric"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "question_refs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "question_ref",
+                  "question_text",
+                  "answer_text"
+                ],
+                "properties": {
+                  "question_ref": {
+                    "type": "string"
+                  },
+                  "question_text": {
+                    "type": "string"
+                  },
+                  "choices": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "answer_text": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "deliverable": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "columns",
+                "rows",
+                "model"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 2
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "model": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "cells"
+                    ],
+                    "properties": {
+                      "cells": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "rubric": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "criterion",
+                  "descriptor"
+                ],
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "descriptor": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "reveal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "story",
+            "reference",
+            "plan"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "story": {
+              "type": "string"
+            },
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "items"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              }
+            },
+            "plan": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "items"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        },
+        "registration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "type",
+            "main_class",
+            "sub_class",
+            "language",
+            "edition",
+            "year",
+            "parts",
+            "origin",
+            "page_count",
+            "sensitive_topics"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "main_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sub_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "language": {
+              "type": "string"
+            },
+            "edition": {
+              "type": "integer"
+            },
+            "year": {
+              "type": "integer"
+            },
+            "parts": {
+              "type": "integer"
+            },
+            "origin": {
+              "type": "string"
+            },
+            "page_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "sensitive_topics": {
+              "type": "string"
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "warnings",
+            "reviewed_by",
+            "reviewed_at"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reviewed_by": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reviewed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "ContentBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "paragraph",
+            "callout",
+            "bullets",
+            "steps",
+            "table",
+            "cards",
+            "question",
+            "response_space"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Text"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Items"
+        },
+        "columns": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Columns"
+        },
+        "rows": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Row"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rows"
+        },
+        "question_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Question Ref"
+        },
+        "teacher_only": {
+          "title": "Teacher Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "title",
+        "text",
+        "items",
+        "columns",
+        "rows",
+        "question_ref",
+        "teacher_only"
+      ],
+      "title": "ContentBlock",
+      "type": "object"
+    },
+    "ProductionSection": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "blocks": {
+          "items": {
+            "$ref": "#/$defs/ContentBlock"
+          },
+          "title": "Blocks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "role",
+        "blocks"
+      ],
+      "title": "ProductionSection",
+      "type": "object"
+    },
+    "Row": {
+      "additionalProperties": false,
+      "properties": {
+        "cells": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cells",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cells"
+      ],
+      "title": "Row",
+      "type": "object"
+    },
+    "QuestionDisplay": {
+      "additionalProperties": false,
+      "properties": {
+        "question_ref": {
+          "title": "Question Ref",
+          "type": "string"
+        },
+        "question_text": {
+          "title": "Question Text",
+          "type": "string"
+        },
+        "choices": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Choices"
+        },
+        "answer_text": {
+          "title": "Answer Text",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question_ref",
+        "question_text",
+        "choices",
+        "answer_text",
+        "explanation"
+      ],
+      "title": "QuestionDisplay",
+      "type": "object"
+    },
+    "production_product": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "product_type": {
+          "title": "Product Type",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "subtitle": {
+          "title": "Subtitle",
+          "type": "string"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "audience": {
+          "title": "Audience",
+          "type": "string"
+        },
+        "lesson_connection": {
+          "title": "Lesson Connection",
+          "type": "string"
+        },
+        "concepts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Concepts",
+          "type": "array"
+        },
+        "layout": {
+          "enum": [
+            "document",
+            "cards",
+            "poster"
+          ],
+          "title": "Layout",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "goal_id": {
+          "type": "string"
+        },
+        "goal_text": {
+          "type": "string"
+        },
+        "registration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "type",
+            "main_class",
+            "sub_class",
+            "language",
+            "edition",
+            "year",
+            "parts",
+            "origin",
+            "page_count",
+            "sensitive_topics"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "main_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sub_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "language": {
+              "type": "string"
+            },
+            "edition": {
+              "type": "integer"
+            },
+            "year": {
+              "type": "integer"
+            },
+            "parts": {
+              "type": "integer"
+            },
+            "origin": {
+              "type": "string"
+            },
+            "page_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "sensitive_topics": {
+              "type": "string"
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "warnings",
+            "reviewed_by",
+            "reviewed_at"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reviewed_by": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reviewed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/ProductionSection"
+          },
+          "title": "Sections",
+          "type": "array",
+          "minItems": 1
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QuestionDisplay"
+          }
+        }
+      },
+      "required": [
+        "product_type",
+        "title",
+        "subtitle",
+        "purpose",
+        "audience",
+        "lesson_connection",
+        "concepts",
+        "layout",
+        "id",
+        "goal_id",
+        "goal_text",
+        "registration",
+        "review",
+        "sections",
+        "questions"
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "document_uuid",
+    "document_idx",
+    "custom_id",
+    "filename",
+    "subject",
+    "language",
+    "bank_fingerprint",
+    "content_fingerprint",
+    "prompt_version",
+    "generation",
+    "products",
+    "failed_goals",
+    "generated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "knowledge_production"
+      ]
+    },
+    "document_uuid": {
+      "type": "string",
+      "minLength": 1
+    },
+    "document_idx": {
+      "type": "string",
+      "minLength": 1
+    },
+    "custom_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "filename": {
+      "type": "string"
+    },
+    "subject": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "ar",
+        "en"
+      ]
+    },
+    "bank_fingerprint": {
+      "type": "string"
+    },
+    "content_fingerprint": {
+      "type": "string"
+    },
+    "prompt_version": {
+      "type": "string"
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "llm",
+        "unit",
+        "question_policy",
+        "usage",
+        "requires_human_review"
+      ],
+      "properties": {
+        "llm": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "one_product_per_goal",
+            "one_product_per_worksheet_goal"
+          ]
+        },
+        "content_source": {
+          "type": "string"
+        },
+        "goal_source": {
+          "type": "string"
+        },
+        "question_policy": {
+          "type": "string"
+        },
+        "usage": {
+          "type": "object"
+        },
+        "requires_human_review": {
+          "type": "boolean"
+        }
+      }
+    },
+    "products": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/product"
+          },
+          {
+            "$ref": "#/$defs/production_product"
+          }
+        ]
+      }
+    },
+    "failed_goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal_id",
+          "reason"
+        ],
+        "properties": {
+          "goal_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "x-bson": "date"
+    }
+  }
+}

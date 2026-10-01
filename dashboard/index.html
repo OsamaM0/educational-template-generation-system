@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>تحضير+ | لوحة الإنتاج المعرفي</title>
+  <style>
+    :root{color-scheme:light;--ink:#172637;--muted:#63758a;--line:#dce5ed;--paper:#fff;
+      --bg:#f3f7fa;--navy:#173b52;--teal:#087f78;--teal-soft:#e4f5f1;--amber:#ad6b16;
+      --amber-soft:#fff5e5;--red:#ae4545;--red-soft:#fff0ee;--shadow:0 12px 36px #1836480c}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);
+      color:var(--ink);font:15px/1.7 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
+    button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}
+    a{color:var(--teal);text-decoration:none}.muted{color:var(--muted)}.small{font-size:13px}
+    .topbar{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+    .top-inner{max-width:1480px;margin:auto;padding:12px 28px;display:flex;align-items:center;gap:30px}
+    .brand{display:flex;align-items:center;gap:12px;min-width:220px}.brand-mark{width:42px;height:42px;
+      display:grid;place-items:center;border-radius:13px;background:var(--navy);color:#fff;font-size:22px;font-weight:800}
+    .brand strong{display:block;font-size:18px;line-height:1.2}.brand small{display:block;color:var(--muted);font-size:11px}
+    .nav{display:flex;gap:5px;flex:1}.nav button{border:0;background:transparent;color:var(--muted);
+      padding:9px 15px;border-radius:10px;font-weight:700}.nav button:hover{background:#edf4f7}
+    .nav button.active{color:var(--navy);background:#e8f1f5}
+    .top-state{font-size:12px;font-weight:800;padding:7px 12px;border-radius:30px;background:#eaf0f4;color:var(--navy);white-space:nowrap}
+    .top-state.running{background:var(--teal-soft);color:var(--teal)}
+    .shell{max-width:1480px;margin:auto;padding:28px}.view{display:none}.view.active{display:block}
+    .eyebrow{font-size:12px;font-weight:800;color:var(--teal);letter-spacing:.04em;margin:0 0 6px}
+    h1,h2,h3,h4,p{margin-top:0}h1{font-size:31px;line-height:1.3;margin-bottom:8px;letter-spacing:-.025em}
+    h2{font-size:20px;margin-bottom:6px}h3{font-size:17px;margin-bottom:8px}h4{font-size:15px;margin-bottom:5px}
+    .lead{color:var(--muted);max-width:720px;margin:0 0 26px}.section-head{display:flex;justify-content:space-between;
+      align-items:end;gap:14px;margin:26px 0 14px}.section-head p{margin:0;color:var(--muted);font-size:13px}
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+    .card-pad{padding:22px}.hero{background:linear-gradient(115deg,#173b52,#126c72);color:#fff;padding:26px 30px;
+      display:grid;grid-template-columns:1.3fr .7fr;gap:30px}.hero h2{font-size:25px;margin:5px 0 10px}
+    .hero p{color:#d5e7e9;margin-bottom:18px}.hero .status-badge{display:inline-flex;align-items:center;
+      background:#ffffff28;border:1px solid #ffffff44;border-radius:30px;padding:4px 10px;font-size:12px;font-weight:800}
+    .hero .status-badge::before{content:"";width:7px;height:7px;border-radius:50%;background:#80e6cc;margin-left:8px}
+    .hero-metric{align-self:center;background:#ffffff18;border:1px solid #ffffff35;border-radius:16px;padding:18px}
+    .hero-metric strong{display:block;font-size:36px;line-height:1.2}.hero-metric small{color:#d5e7e9}
+    .progress-track{height:10px;background:#d9e9e8;border-radius:20px;overflow:hidden;margin:12px 0 8px}
+    .progress-track i{display:block;height:100%;width:0;background:#43c3a6;border-radius:20px;transition:width .3s}
+    .hero .progress-track{background:#ffffff35}.hero .progress-track i{background:#8ae5ca}
+    .stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}
+    .stat{padding:18px 20px}.stat .label{color:var(--muted);font-size:12px;font-weight:700}
+    .stat strong{display:block;font-size:29px;line-height:1.3;margin:3px 0}.stat small{color:var(--muted)}
+    .two-col{display:grid;grid-template-columns:1.3fr .7fr;gap:18px}.list{list-style:none;margin:0;padding:0}
+    .activity{padding:11px 0;border-bottom:1px solid #edf1f4;display:flex;justify-content:space-between;gap:12px}
+    .activity:last-child{border-bottom:0}.activity .title{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .activity .sub{font-size:12px;color:var(--muted)}.status{display:inline-block;padding:3px 9px;border-radius:30px;
+      background:#edf1f4;color:var(--muted);font-size:12px;font-weight:800;white-space:nowrap}
+    .status.complete,.status.generated,.status.up_to_date{background:var(--teal-soft);color:var(--teal)}
+    .status.partial,.status.pending_save{background:var(--amber-soft);color:var(--amber)}
+    .status.failed,.status.error,.status.no_goals,.status.no_content{background:var(--red-soft);color:var(--red)}
+    .coverage{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:13px}
+    .coverage div{padding:12px;border:1px solid var(--line);border-radius:11px}.coverage strong{display:block;font-size:20px}
+    .coverage span{color:var(--muted);font-size:11px}
+    .btn{border:1px solid var(--teal);background:var(--teal);color:white;border-radius:10px;padding:10px 16px;font-weight:800}
+    .btn:hover:not(:disabled){background:#086f69}.btn.secondary{background:#fff;border-color:var(--line);color:var(--navy)}
+    .btn.secondary:hover:not(:disabled){background:#f2f7f8}.btn.text{background:transparent;border:0;color:var(--teal);padding:5px 0}
+    .library{display:grid;grid-template-columns:345px minmax(0,1fr);gap:18px;align-items:start}
+    .browser{position:sticky;top:88px;max-height:calc(100vh - 112px);display:flex;flex-direction:column}
+    .browser-head{padding:18px;border-bottom:1px solid var(--line)}.browser-list{overflow:auto;padding:7px}
+    .field{display:flex;flex-direction:column;gap:6px}.field label,.field-label{font-size:13px;font-weight:800;color:var(--navy)}
+    input[type=text],input[type=number],select,textarea{width:100%;border:1px solid #cddae3;background:#fff;
+      color:var(--ink);border-radius:10px;padding:10px 12px;outline:0}
+    input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px #087f7820}
+    .filters{display:flex;gap:7px;margin-top:12px}.filter{border:1px solid var(--line);background:#fff;
+      color:var(--muted);border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700}
+    .filter.active{background:var(--teal-soft);color:var(--teal);border-color:#b8ded6}
+    .lesson-row{width:100%;display:block;text-align:right;background:#fff;border:1px solid transparent;
+      border-radius:12px;padding:10px 12px;margin:3px 0;color:var(--ink)}
+    .lesson-row:hover{background:#f5faf9}.lesson-row.active{background:#eaf6f3;border-color:#a8d8ce}
+    .lesson-row strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+    .lesson-row span{font-size:11px;color:var(--muted)}.lesson-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px}
+    .pager{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+    .pager button{border:0;background:transparent;color:var(--teal);font-weight:800}.pager button:disabled{color:#aebdc8}
+    .detail{min-height:540px;padding:26px}.detail-head{display:flex;justify-content:space-between;align-items:start;gap:14px}
+    .detail-head h2{font-size:23px}.tabbar{display:flex;gap:5px;overflow:auto;border-bottom:1px solid var(--line);margin:22px -26px 22px;padding:0 26px}
+    .tabbar button{white-space:nowrap;background:none;border:0;border-bottom:3px solid transparent;
+      padding:12px 10px;color:var(--muted);font-weight:800}.tabbar button.active{color:var(--teal);border-bottom-color:var(--teal)}
+    .notice{background:#f1f7fa;border:1px solid #d8e8ef;border-radius:12px;padding:13px 15px;margin:14px 0;color:var(--navy)}
+    .notice.warn{background:var(--amber-soft);border-color:#f2dcb5;color:#7d5013}
+    .notice.error{background:var(--red-soft);border-color:#efc9c5;color:var(--red)}
+    .empty{padding:55px 24px;text-align:center;color:var(--muted)}.empty .icon{font-size:38px;display:block;margin-bottom:8px}
+    .product{border:1px solid var(--line);border-radius:14px;margin:13px 0;background:#fff;overflow:hidden}
+    .product summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .product summary::-webkit-details-marker{display:none}.product summary::after{content:"⌄";font-size:20px;color:var(--teal)}
+    .product[open] summary::after{transform:rotate(180deg)}.product summary strong{display:block;font-size:16px}
+    .product summary small{color:var(--muted)}.product-body{border-top:1px solid var(--line);padding:18px}
+    .section{border-top:1px solid #edf1f4;margin-top:18px;padding-top:17px}.section:first-child{border:0;margin:0;padding:0}
+    .block{padding:9px 0;white-space:pre-wrap}.block.teacher{border-right:3px solid #e6af63;background:#fffaf0;padding:10px 12px;border-radius:8px}
+    .block h4{margin:0 0 5px}.block p{margin:5px 0}.block ul,.block ol{margin:7px 0;padding-right:22px}
+    .question{border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin:10px 0;background:#fbfdfe}
+    .question strong{display:block}.question li.correct{color:var(--teal);font-weight:800}
+    .content-table{width:100%;border-collapse:collapse;margin:10px 0;min-width:320px}
+    .content-table th,.content-table td{border:1px solid var(--line);padding:8px 10px;text-align:right;vertical-align:top}
+    .content-table th{background:#f3f8fa}.table-scroll{overflow:auto}.mind-node{display:inline-block;padding:4px 10px;background:#eaf3f6;border-radius:8px}
+    .tree{list-style:none;padding-right:18px}.tree li{margin:6px 0}.generic .pair{border-bottom:1px solid #edf1f4;padding:8px 0}
+    .generic .key{font-size:12px;font-weight:800;color:var(--muted)}.generic .value{white-space:pre-wrap}
+    .run-grid{display:grid;grid-template-columns:1fr .8fr;gap:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+    .check{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px}
+    .check input{accent-color:var(--teal)}.form-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px}
+    .run-log{direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;background:#102e40;color:#e0eef4;
+      border-radius:12px;padding:16px;max-height:330px;overflow:auto;font:12px/1.65 ui-monospace,monospace}
+    details.raw{margin-top:20px}details.raw summary{cursor:pointer;color:var(--teal);font-weight:800}
+    details.raw pre{direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;background:#102e40;
+      color:#e0eef4;border-radius:12px;padding:16px;max-height:400px;overflow:auto;font:12px/1.6 ui-monospace,monospace}
+    @media(max-width:950px){.two-col,.run-grid{grid-template-columns:1fr}.stat-grid{grid-template-columns:repeat(2,1fr)}
+      .library{grid-template-columns:300px minmax(0,1fr)}.top-inner{padding:10px 18px;gap:12px}.brand{min-width:0}}
+    @media(max-width:690px){.top-inner{flex-wrap:wrap}.brand{flex:1}.nav{order:3;width:100%;justify-content:space-around}
+      .nav button{padding:8px}.shell{padding:16px}.hero{grid-template-columns:1fr;padding:23px}.stat-grid{gap:9px}
+      .stat{padding:13px}.stat strong{font-size:23px}.library{display:block}.browser{position:static;max-height:400px;margin-bottom:16px}
+      .detail{padding:18px}.tabbar{margin-left:-18px;margin-right:-18px;padding:0 18px}.coverage{grid-template-columns:repeat(2,1fr)}
+      .form-grid{grid-template-columns:1fr}h1{font-size:25px}}
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="top-inner">
+    <div class="brand"><div class="brand-mark">ت+</div><div><strong>تحضير+</strong><small>لوحة الإنتاج المعرفي</small></div></div>
+    <nav class="nav" aria-label="أقسام اللوحة">
+      <button data-view="overview" class="active">نظرة عامة</button>
+      <button data-view="library">مكتبة الدروس</button>
+      <button data-view="run">تشغيل جديد</button>
+    </nav>
+    <span id="top-state" class="top-state">جارٍ التحقق…</span>
+  </div></header>
+  <div class="shell">
+    <section id="view-overview" class="view active">
+      <p class="eyebrow">متابعة العمل</p><h1>الإنتاج المعرفي، بصورة أوضح</h1>
+      <p class="lead">تابع تقدّم توليد المواد التعليمية، راجع الدروس التي اكتملت، واعرف استهلاك النماذج وتكلفته التقديرية من مكان واحد.</p>
+      <div class="hero card">
+        <div><span id="hero-state" class="status-badge">جارٍ تحميل الحالة</span><h2 id="hero-title">جارٍ التحقق من التشغيل…</h2>
+          <p id="hero-description">سنظهر هنا آخر تشغيل للإنتاج المعرفي.</p>
+          <button class="btn secondary" data-view="library">استعرض نتائج الدروس ←</button></div>
+        <div class="hero-metric"><small>الدروس المنتهية من التشغيل الحالي</small><strong id="progress-fraction">—</strong>
+          <div class="progress-track"><i id="progress-fill"></i></div><small id="progress-note">جارٍ التحميل…</small></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat card"><span class="label">إنتاج محفوظ</span><strong id="stat-knowledge">—</strong><small>درس لديه إنتاج معرفي</small></div>
+        <div class="stat card"><span class="label">دروس مكتملة في التشغيل</span><strong id="stat-done">—</strong><small>نجاح كامل</small></div>
+        <div class="stat card"><span class="label">تحتاج مراجعة</span><strong id="stat-attention">—</strong><small>نتائج جزئية أو فاشلة</small></div>
+        <div class="stat card"><span class="label">التكلفة التقديرية</span><strong id="stat-cost">—</strong><small>دولار أمريكي حتى الآن</small></div>
+      </div>
+      <div class="two-col">
+        <div class="card card-pad"><div class="section-head" style="margin:0 0 10px"><div><h2>آخر الدروس</h2><p>نتائج التشغيل الحالي، الأحدث أولاً</p></div>
+          <button class="btn text" data-view="library">كل الدروس ←</button></div><div id="recent-list" class="muted">جارٍ التحميل…</div></div>
+        <div class="card card-pad"><h2>ما الذي يجري الآن؟</h2><p class="muted small">أحدث خطوة لكل درس نشط</p>
+          <div id="active-list" class="muted">جارٍ التحميل…</div></div>
+      </div>
+      <div class="section-head"><div><h2>تغطية مواد الدروس</h2><p>عدد السجلات المحفوظة لكل نوع</p></div></div>
+      <div id="coverage" class="card card-pad coverage"></div>
+    </section>
+    <section id="view-library" class="view">
+      <p class="eyebrow">مكتبة الدروس</p><h1>اعثر على الدرس وراجع مواده</h1>
+      <p class="lead">ابحث بالعنوان أو الرقم، ثم اختر نوع المادة. تُعرض حالة الإنتاج المعرفي لكل درس في القائمة.</p>
+      <div class="library">
+        <aside class="browser card">
+          <div class="browser-head"><div class="field"><label for="lesson-search">بحث عن درس</label>
+            <input id="lesson-search" type="text" placeholder="اسم الدرس أو رقمه" autocomplete="off"></div>
+            <div class="filters" aria-label="تصفية حالة الإنتاج المعرفي">
+              <button class="filter active" data-filter="all">الكل</button><button class="filter" data-filter="complete">مكتمل</button>
+              <button class="filter" data-filter="partial">جزئي</button><button class="filter" data-filter="missing">لم يبدأ</button>
+            </div></div>
+          <div id="lesson-list" class="browser-list"><div class="empty">جارٍ تحميل الدروس…</div></div>
+          <div class="pager"><button id="page-prev" aria-label="الصفحة السابقة">السابق</button><span id="page-info">—</span>
+            <button id="page-next" aria-label="الصفحة التالية">التالي</button></div>
+        </aside>
+        <main id="lesson-detail" class="detail card"><div class="empty"><span class="icon">📖</span>اختر درساً من القائمة لعرض مواده.</div></main>
+      </div>
+    </section>
+    <section id="view-run" class="view">
+      <p class="eyebrow">تشغيل المواد</p><h1>ابدأ تشغيلًا جديدًا</h1>
+      <p class="lead">اختر المواد والدروس المطلوبة. عند اختيار الإنتاج المعرفي وحده، يستخدم الملخص وورقة العمل المخزنين مسبقاً.</p>
+      <div id="external-warning" class="notice warn" hidden>يوجد تشغيل شامل جارٍ الآن. انتظر اكتماله قبل بدء تشغيل آخر حتى لا تتكرر طلبات النماذج.</div>
+      <div class="run-grid">
+        <div class="card card-pad">
+          <h2>إعدادات التشغيل</h2><p class="muted small">توليد المواد المختارة للدروس المحددة، أو جميع الدروس المناسبة عند ترك الأرقام فارغة.</p>
+          <div class="field-label">أنواع المواد</div><div class="check-grid" id="template-checks">
+            <label class="check"><input type="checkbox" value="knowledge_productions" checked> الإنتاج المعرفي</label>
+            <label class="check"><input type="checkbox" value="summaries"> الملخصات</label>
+            <label class="check"><input type="checkbox" value="worksheets"> أوراق العمل</label>
+            <label class="check"><input type="checkbox" value="questions"> الأسئلة</label>
+            <label class="check"><input type="checkbox" value="mindmaps"> خرائط الذهن</label>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label for="lesson-ids">أرقام الدروس (اختياري)</label><input id="lesson-ids" type="text" placeholder="مثال: 445, 446">
+              <small class="muted">اتركه فارغاً للمرور على جميع الدروس المتاحة.</small></div>
+            <div class="field"><label for="limit">الحد الأقصى للدروس (اختياري)</label><input id="limit" type="number" min="0" placeholder="بلا حد"></div>
+            <div class="field"><label for="workers">عدد الدروس المتوازية</label><input id="workers" type="number" min="1" max="16" value="2"></div>
+          </div>
+          <div class="check-grid">
+            <label class="check"><input id="dry-run" type="checkbox"> معاينة فقط، بلا طلبات نموذج أو حفظ</label>
+            <label class="check"><input id="force-kp" type="checkbox"> إعادة توليد الإنتاج المعرفي الحالي</label>
+          </div>
+          <div class="form-actions"><button id="run-btn" class="btn">ابدأ التشغيل</button>
+            <button id="resume-btn" class="btn secondary">حفظ النتائج المعلّقة</button></div>
+        </div>
+        <div class="card card-pad"><h2>تقدّم تشغيل هذه الصفحة</h2>
+          <p class="muted small">يظهر هنا التشغيل الذي بدأته من هذه الواجهة. متابعة التشغيل الشامل في «نظرة عامة».</p>
+          <div id="ui-run-status" class="notice">لا يوجد تشغيل من هذه الصفحة حالياً.</div>
+          <div class="progress-track"><i id="ui-progress-fill"></i></div>
+          <div id="ui-active" class="small muted"></div>
+          <details class="raw"><summary>السجل التفصيلي</summary><pre id="ui-run-log">لا يوجد سجل بعد.</pre></details>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const fmt = value => Number(value || 0).toLocaleString("ar-EG");
+    const money = value => "$" + Number(value || 0).toFixed(4);
+    const labels = {summaries:"ملخص",worksheets:"ورقة عمل",questions:"أسئلة",mindmaps:"خريطة ذهن",knowledge_productions:"إنتاج معرفي"};
+    const states = {complete:"مكتمل",generated:"مكتمل",up_to_date:"موجود",partial:"جزئي",missing:"لم يبدأ",
+      failed:"فشل",error:"خطأ",no_goals:"بلا أهداف",no_content:"بلا محتوى",pending_save:"بانتظار الحفظ",dry_run:"معاينة"};
+    const stageLabels = {load_content:"قراءة المحتوى",plan:"تخطيط الأهداف",topics:"اختيار الأفكار",project:"كتابة المنتج",
+      link:"ربط الأسئلة",save:"حفظ النتيجة",goal_completed:"إنهاء هدف",validate:"فحص النتيجة"};
+    const app = {view:"overview",filter:"all",page:1,pages:1,selected:null,tab:"knowledge_productions",detail:null,
+      backfillRunning:false,uiRunning:false,searchTimer:null};
+    async function api(path,options){const response=await fetch(path,options);let data;try{data=await response.json()}catch{throw Error("تعذر قراءة استجابة الخادم")}
+      if(!response.ok)throw Error(data.error||"تعذر الاتصال بالخادم");return data}
+    function showView(view){app.view=view;document.querySelectorAll(".view").forEach(el=>el.classList.toggle("active",el.id==="view-"+view));
+      document.querySelectorAll("[data-view]").forEach(el=>el.classList.toggle("active",el.dataset.view===view&&el.closest(".nav")));
+      if(view==="library")loadLessons();if(view==="run")pollUiRun();window.scrollTo({top:0,behavior:"smooth"})}
+    document.querySelectorAll("[data-view]").forEach(el=>el.addEventListener("click",()=>showView(el.dataset.view)));
+    function statusPill(status){return `<span class="status ${esc(status)}">${esc(states[status]||status||"—")}</span>`}
+    function empty(icon,text){return `<div class="empty"><span class="icon">${icon}</span>${esc(text)}</div>`}
+
+    async function loadStats(){try{const s=await api("/api/stats");$("stat-knowledge").textContent=fmt(s.counts.knowledge_productions);
+      $("coverage").innerHTML=Object.entries(labels).map(([key,label])=>`<div><strong>${fmt(s.counts[key])}</strong><span>${label}</span></div>`).join("")}
+      catch(error){$("coverage").innerHTML=`<div class="notice error">${esc(error.message)}</div>`}}
+    function renderActivity(rows){return rows.length?`<ul class="list">${rows.map(row=>`<li class="activity"><div style="min-width:0">
+      <div class="title">${esc(row.title||"درس #"+(row.lesson_id||"—"))}</div><div class="sub">#${esc(row.lesson_id||"—")} · ${fmt(row.products)} منتجات
+      ${row.failed_goals?`· ${fmt(row.failed_goals)} هدف يحتاج إعادة محاولة`:""}</div></div>${statusPill(row.status)}</li>`).join("")}</ul>`:
+      empty("🗂️","ستظهر نتائج الدروس هنا بعد اكتمالها.")}
+    async function pollBackfill(){try{const s=await api("/api/backfill/status");app.backfillRunning=!!s.running;
+      $("top-state").textContent=s.running?"● التشغيل الشامل جارٍ":s.available?"آخر تشغيل متوقف":"لا يوجد تشغيل شامل";
+      $("top-state").classList.toggle("running",!!s.running);$("external-warning").hidden=!s.running;
+      $("run-btn").disabled=$("resume-btn").disabled=s.running||app.uiRunning;
+      $("hero-state").textContent=s.running?"التوليد جارٍ":s.available?"آخر تشغيل":"جاهز";
+      $("hero-title").textContent=s.running?"يُنشأ منتج لكل هدف تعليمي":s.available?"آخر تشغيل للإنتاج المعرفي":"ابدأ إنتاجاً معرفياً للدروس";
+      $("hero-description").textContent=s.running?"يحفظ النظام كل درس مكتمل، ويسجل استهلاك الرموز والتكلفة التقديرية تلقائياً.":
+        "يمكنك استعراض الدروس المحفوظة أو بدء تشغيل جديد من صفحة التشغيل.";
+      $("progress-fraction").textContent=s.available?`${fmt(s.completed)} / ${fmt(s.total)}`:"—";
+      $("progress-fill").style.width=s.total?`${Math.min(100,s.completed/s.total*100)}%`:"0%";
+      $("progress-note").textContent=s.available?`${(s.total?100*s.completed/s.total:0).toFixed(1)}% من الدروس · ${fmt(s.usage?.total_tokens)} رمز`:
+        "لا توجد بيانات تشغيل بعد";
+      $("stat-done").textContent=fmt((s.counts?.generated||0)+(s.counts?.up_to_date||0));
+      $("stat-attention").textContent=fmt(Object.entries(s.counts||{}).filter(([key])=>!["generated","up_to_date","dry_run"].includes(key))
+        .reduce((sum,[,value])=>sum+value,0));$("stat-cost").textContent=s.available?money(s.usage?.estimated_cost_usd):"—";
+      $("recent-list").innerHTML=renderActivity(s.recent||[]);
+      $("active-list").innerHTML=(s.active||[]).length?`<ul class="list">${s.active.map(item=>`<li class="activity"><div>
+        <div class="title">${esc(item.title||"درس #"+(item.lesson_id||"—"))}</div><div class="sub">${esc(stageLabels[item.stage]||item.stage||"جارٍ العمل")}
+        ${item.goal_id?` · ${esc(item.goal_id)}`:""}${item.state==="repair"?" · إصلاح النتيجة":""}</div></div></li>`).join("")}</ul>`:
+        empty("☕","لا توجد خطوات نشطة ظاهرة الآن.")}
+      catch(error){$("top-state").textContent="تعذر جلب الحالة";$("hero-description").textContent=error.message}
+      setTimeout(pollBackfill,5000)}
+
+    async function loadLessons(){if(app.view!=="library")return;const q=$("lesson-search").value.trim();
+      $("lesson-list").innerHTML=empty("⌛","جارٍ تحميل الدروس…");
+      try{const data=await api(`/api/lessons?q=${encodeURIComponent(q)}&status=${app.filter}&page=${app.page}`);
+        app.pages=data.pages;$("page-info").textContent=`${fmt(data.page)} من ${fmt(data.pages)} · ${fmt(data.total)} درس`;
+        $("page-prev").disabled=data.page<=1;$("page-next").disabled=data.page>=data.pages;
+        $("lesson-list").innerHTML=data.items.length?data.items.map(row=>`<button class="lesson-row ${app.selected===row.uuid?"active":""}"
+          data-uuid="${esc(row.uuid)}"><strong>${esc(row.filename||"درس بلا عنوان")}</strong><div class="lesson-meta">
+          <span>#${esc(row.idx||"—")} · ${row.goal_count===null?"أهداف غير معروفة":fmt(row.goal_count)+" أهداف"}</span>
+          ${statusPill(row.knowledge_status)}</div></button>`).join(""):empty("🔎","لا توجد دروس تطابق البحث أو التصفية.");
+        document.querySelectorAll(".lesson-row").forEach(el=>el.addEventListener("click",()=>openLesson(el.dataset.uuid)))}
+      catch(error){$("lesson-list").innerHTML=empty("⚠️","تعذر تحميل الدروس: "+error.message)}}
+    $("lesson-search").addEventListener("input",()=>{clearTimeout(app.searchTimer);app.page=1;app.searchTimer=setTimeout(loadLessons,280)});
+    document.querySelectorAll("[data-filter]").forEach(el=>el.addEventListener("click",()=>{app.filter=el.dataset.filter;app.page=1;
+      document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===el));loadLessons()}));
+    $("page-prev").addEventListener("click",()=>{if(app.page>1){app.page--;loadLessons()}});
+    $("page-next").addEventListener("click",()=>{if(app.page<app.pages){app.page++;loadLessons()}});
+
+    function renderValue(value,depth=0){if(value===null||value===undefined||value==="")return "—";
+      if(depth>5)return "…";if(Array.isArray(value))return value.length?`<ul>${value.map(x=>`<li>${renderValue(x,depth+1)}</li>`).join("")}</ul>`:"—";
+      if(typeof value==="object")return `<div class="generic">${Object.entries(value).filter(([key])=>!key.startsWith("_")).map(([key,val])=>
+        `<div class="pair"><div class="key">${esc(key)}</div><div class="value">${renderValue(val,depth+1)}</div></div>`).join("")}</div>`;
+      return esc(value)}
+    function questionCard(q){const choices=Array.isArray(q.choices)?q.choices:[];const correct=Number.isInteger(q.answer_key)?q.answer_key:-1;
+      return `<div class="question"><strong>${esc(q.question||q.question_text||"سؤال")}</strong>
+        ${choices.length?`<ul>${choices.map((choice,i)=>`<li class="${i===correct?"correct":""}">${esc(choice)}${i===correct?" ✓":""}</li>`).join("")}</ul>`:""}
+        ${q.answer!==undefined?`<p><b>الإجابة:</b> ${esc(q.answer)}</p>`:""}
+        ${q.solution_outline?`<p class="muted">${esc(q.solution_outline)}</p>`:""}</div>`}
+    function renderQuestions(record){const data=record.questions||{};const groups=[["multiple_choice","اختيار من متعدد"],["true_false","صح أو خطأ"],
+      ["short_answer","إجابة قصيرة"],["complete","أكمل"]];let html="";for(const [key,label] of groups){const items=data[key]||[];
+      if(items.length)html+=`<div class="section"><h3>${label} <span class="muted small">(${fmt(items.length)})</span></h3>${items.map(questionCard).join("")}</div>`}
+      return html||empty("❔","لا توجد أسئلة محفوظة لهذا الدرس.")}
+    function mindmapTree(payload){const nodes=payload.nodeDataArray,links=payload.linkDataArray;
+      if(!Array.isArray(nodes)||!Array.isArray(links))return renderValue(payload);
+      const byKey=Object.fromEntries(nodes.map(node=>[node.key,node]));const children={};for(const link of links)(children[link.from]??=[]).push(link.to);
+      const childKeys=new Set(links.map(link=>link.to));const walk=(key,depth,seen)=>{if(depth>12||seen.has(key))return "";
+        const next=new Set(seen);next.add(key);return `<li><span class="mind-node">${esc(byKey[key]?.text||key)}</span>
+          ${(children[key]||[]).length?`<ul class="tree">${children[key].map(id=>walk(id,depth+1,next)).join("")}</ul>`:""}</li>`};
+      return `<ul class="tree">${nodes.filter(node=>!childKeys.has(node.key)).map(node=>walk(node.key,0,new Set())).join("")}</ul>`}
+    function renderBlock(block,questions){let html=`<div class="block ${block.teacher_only?"teacher":""}">`;
+      if(block.teacher_only)html+=`<div class="small muted">ملاحظة للمعلم</div>`;
+      if(block.title)html+=`<h4>${esc(block.title)}</h4>`;if(block.text)html+=`<p>${esc(block.text)}</p>`;
+      if(block.items?.length){const tag=block.kind==="steps"?"ol":"ul";html+=`<${tag}>${block.items.map(item=>`<li>${esc(item)}</li>`).join("")}</${tag}>`}
+      if(block.kind==="table")html+=`<div class="table-scroll"><table class="content-table"><thead><tr>${(block.columns||[]).map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead>
+        <tbody>${(block.rows||[]).map(row=>`<tr>${(row.cells||[]).map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+      if(block.kind==="question"&&questions[block.question_ref]){const q=questions[block.question_ref];html+=questionCard(q)+
+        `<details><summary>الإجابة والتفسير</summary><p>${esc(q.answer_text)}</p><p>${esc(q.explanation)}</p></details>`}
+      if(block.kind==="response_space")html+=`<div class="notice muted">مساحة لإجابة المتعلم</div>`;
+      return html+`</div>`}
+    function renderKnowledge(record){const products=record.products||[];const failed=record.failed_goals||[];
+      let html=`<div class="notice">${fmt(products.length)} منتجات محفوظة · ${fmt(failed.length)} أهداف تحتاج إعادة محاولة. جميع المنتجات الجديدة بانتظار مراجعة بشرية.</div>`;
+      if(failed.length)html+=`<div class="notice warn"><strong>أهداف غير مكتملة</strong><ul>${failed.map(goal=>
+        `<li>${esc(goal.goal_id)}: ${esc(goal.reason)}</li>`).join("")}</ul></div>`;
+      if(!products.length)return html+empty("📚","لم يُحفظ أي منتج بعد.");
+      return html+products.map((product,index)=>{const questions=Object.fromEntries((product.questions||[]).map(q=>[q.question_ref,q]));
+        return `<details class="product" ${index===0?"open":""} dir="${record.language==="en"?"ltr":"rtl"}"><summary><div>
+          <strong>${esc(product.title||"منتج تعليمي")}</strong><small>${esc(product.product_type||"")} · ${esc(product.goal_text||"")}</small></div>
+          <span class="status partial">للمراجعة</span></summary><div class="product-body">
+          ${product.subtitle?`<p class="muted">${esc(product.subtitle)}</p>`:""}
+          ${product.purpose?`<div class="notice"><b>الغرض:</b> ${esc(product.purpose)}</div>`:""}
+          ${(product.sections||[]).map(section=>`<div class="section"><h3>${esc(section.title)}</h3>
+            ${(section.blocks||[]).map(block=>renderBlock(block,questions)).join("")}</div>`).join("")}
+          </div></details>`}).join("")+`<details class="raw"><summary>البيانات الخام JSON</summary><pre>${esc(JSON.stringify(record,null,2))}</pre></details>`}
+    function renderTab(name,record){if(!record)return empty("📭","لا توجد مادة محفوظة من هذا النوع لهذا الدرس.");
+      if(name==="knowledge_productions")return renderKnowledge(record);
+      if(name==="summaries"){const s=record.summary||{};return [["opening","الافتتاحية"],["summary","الملخص"],["ending","الخاتمة"]]
+        .filter(([key])=>s[key]).map(([key,label])=>`<div class="section"><h3>${label}</h3><p style="white-space:pre-wrap">${esc(s[key])}</p></div>`).join("")||empty("📝","الملخص فارغ.")}
+      if(name==="worksheets"){const data=record.worksheet||{};const goals=data.goals||record.goals||[];
+        return `${goals.length?`<div class="notice"><b>الأهداف التعليمية (${fmt(goals.length)})</b><ol>${goals.map(g=>`<li>${esc(g)}</li>`).join("")}</ol></div>`:""}
+          ${renderValue(Object.fromEntries(Object.entries(data).filter(([key])=>key!=="goals")))}`}
+      if(name==="questions")return renderQuestions(record);
+      if(name==="mindmaps")return mindmapTree(record.mindmap||{});return renderValue(record)}
+    function drawDetail(){const d=app.detail;if(!d)return;const base=d.summaries||d.worksheets||d.questions||d.knowledge_productions||d.mindmaps||{};
+      const knowledge=d.knowledge_productions;const status=knowledge?(knowledge.failed_goals||[]).length?"partial":"complete":"missing";
+      $("lesson-detail").innerHTML=`<div class="detail-head"><div><p class="eyebrow">درس #${esc(base.document_idx||"—")}</p>
+        <h2>${esc(base.filename||"درس بلا عنوان")}</h2><p class="muted small">${esc(base.document_uuid||"")}</p></div>${statusPill(status)}</div>
+        <div class="tabbar" role="tablist">${Object.entries(labels).map(([name,label])=>`<button data-tab="${name}" role="tab"
+          aria-selected="${app.tab===name}" class="${app.tab===name?"active":""}">${label}${d[name]?"":" ·"}</button>`).join("")}</div>
+        <div id="tab-content">${renderTab(app.tab,d[app.tab])}</div>`;
+      document.querySelectorAll("[data-tab]").forEach(el=>el.addEventListener("click",()=>{app.tab=el.dataset.tab;drawDetail()}))}
+    async function openLesson(uuid){app.selected=uuid;document.querySelectorAll(".lesson-row").forEach(el=>el.classList.toggle("active",el.dataset.uuid===uuid));
+      $("lesson-detail").innerHTML=empty("⌛","جارٍ تحميل الدرس…");try{app.detail=await api("/api/lesson?uuid="+encodeURIComponent(uuid));drawDetail()}
+      catch(error){$("lesson-detail").innerHTML=empty("⚠️","تعذر تحميل الدرس: "+error.message)}}
+
+    async function startRun(resume=false){const templates=[...document.querySelectorAll("#template-checks input:checked")].map(el=>el.value);
+      const body={templates,workers:Number($("workers").value)||2,limit:Number($("limit").value)||0,
+        lesson_ids:$("lesson-ids").value,dry_run:$("dry-run").checked,force:$("force-kp").checked,resume_pending:resume};
+      try{await api("/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        app.uiRunning=true;pollUiRun()}catch(error){$("ui-run-status").className="notice error";$("ui-run-status").textContent=error.message}}
+    $("run-btn").addEventListener("click",()=>startRun(false));$("resume-btn").addEventListener("click",()=>startRun(true));
+    async function pollUiRun(){try{const s=await api("/api/run/status");app.uiRunning=!!s.running;const p=s.progress||{};
+      $("ui-progress-fill").style.width=p.total?`${Math.min(100,p.completed/p.total*100)}%`:"0%";
+      $("ui-run-status").className=`notice ${s.exit_code&& !s.running?"warn":""}`;
+      $("ui-run-status").textContent=s.running?`جارٍ التشغيل: ${fmt(p.completed)} من ${fmt(p.total)} درس`:
+        s.exit_code===0?`اكتمل التشغيل: ${fmt(p.completed)} درس`:s.exit_code!==null?`انتهى التشغيل مع نتائج تحتاج مراجعة`:"لا يوجد تشغيل من هذه الصفحة حالياً.";
+      $("ui-active").textContent=Object.values(s.running?p.active||{}:{}).map(item=>
+        `${item.title||item.lesson_id}: ${stageLabels[item.stage]||item.stage||"جارٍ العمل"}${item.goal_id?" · "+item.goal_id:""}`).join(" | ");
+      $("ui-run-log").textContent=(s.tail||[]).join("\n")||"لا يوجد سجل بعد.";
+      $("run-btn").disabled=$("resume-btn").disabled=s.running||app.backfillRunning;
+      if(s.running)setTimeout(pollUiRun,2500);else{loadStats();if(app.view==="library")loadLessons()}}
+      catch(error){$("ui-run-status").className="notice error";$("ui-run-status").textContent=error.message}}
+    loadStats();pollBackfill();pollUiRun();
+  </script>
+</body>
+</html>

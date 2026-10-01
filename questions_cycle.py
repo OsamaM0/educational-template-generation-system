@@ -8,7 +8,7 @@ The cycle per lesson (fill the MISSING AI templates; existing ones are kept):
           a. the lesson's existing AI summary (richer, more detailed data), or
           b. tahdiri questions + ien-v2 name (original method; join key: lessonId)
     ->  4. Generate only the missing templates (summary -> learning goals ->
-       worksheet -> goal-based questions -> mind map) and store them into
+       worksheet -> goal-based questions -> mind map -> knowledge production) and store them into
        the AI database; existing records are never overwritten
 
 LLM provider: OpenRouter
@@ -16,7 +16,7 @@ LLM provider: OpenRouter
 - Everything else:  z-ai/glm-5.3-flash    (Z.ai: GLM 5.3 Flash)
 
 Results are stored in the MongoDB `ai` database (summaries / worksheets /
-questions / mindmaps collections).
+questions / mindmaps / knowledge_productions collections).
 
 Usage examples:
     python questions_cycle.py --dry-run
@@ -41,6 +41,7 @@ from clients.tahdiri_client import TahdiriQuestionsClient, build_lesson_content
 from config.settings import Settings
 from generators.template_generator import TemplateGenerator
 from processors.batch_processor import BatchProcessor
+from utils.run_progress import emit
 
 PREVIEW_LINES = 8
 QUESTION_FETCH_CHUNK = 100  # lessons per bulk questions query
@@ -52,7 +53,7 @@ def tahdiri_source_id(document_idx: Any) -> Optional[int]:
     return int(value) if str(value).isdigit() else None
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the Full AI Cycle on lessons whose content is their tahdiri questions"
     )
@@ -64,11 +65,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-questions", type=int, default=1,
                         help="Skip lessons with fewer tahdiri questions than this")
     parser.add_argument("--templates", nargs="*",
-                        default=["summaries", "worksheets", "questions", "mindmaps"],
-                        choices=["summaries", "worksheets", "questions", "mindmaps"],
+                        default=["summaries", "worksheets", "questions", "mindmaps", "knowledge_productions"],
+                        choices=["summaries", "worksheets", "questions", "mindmaps", "knowledge_productions"],
                         help="Templates to generate (questions auto-adds summaries + worksheets)")
     parser.add_argument("--skip", nargs="*", default=[],
-                        choices=["summaries", "worksheets", "questions", "mindmaps"],
+                        choices=["summaries", "worksheets", "questions", "mindmaps", "knowledge_productions"],
                         help="Templates to skip entirely (e.g. --skip mindmaps worksheets)")
     parser.add_argument("--skip-existing", action="store_true",
                         help="Skip templates that already exist in the ai database")
@@ -76,9 +77,16 @@ def parse_args() -> argparse.Namespace:
                         help="Number of parallel workers (1 = sequential)")
     parser.add_argument("--mongo-url", default=DEFAULT_MONGODB_URI,
                         help="MongoDB connection string (tahdiri source + ai storage)")
+    parser.add_argument("--force-knowledge", action="store_true",
+                        help="Regenerate current knowledge productions too")
     parser.add_argument("--dry-run", action="store_true",
                         help="Only show the questions-based content; no LLM calls, no storage")
-    return parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.workers < 1 or (args.limit is not None and args.limit < 1):
+        parser.error("workers and limit must be positive")
+    if not set(args.templates) - set(args.skip):
+        parser.error("select at least one template that is not skipped")
+    return args
 
 
 def print_dry_run_preview(documents: List[dict]):
@@ -87,7 +95,7 @@ def print_dry_run_preview(documents: List[dict]):
         print("\n" + "=" * 60)
         print(f"📗 {doc['filename']}  (uuid: {doc['uuid']})")
         print(f"   content source: {doc['content_source']} ({len(doc['content'])} chars)")
-        print(f"   templates to generate: {', '.join(doc['template_types'])}")
+        print(f"   templates to process/check: {', '.join(doc['template_types'])}")
         print("-" * 60)
         for line in doc["content"].splitlines()[:PREVIEW_LINES]:
             print(f"   {line}")
@@ -217,9 +225,14 @@ def build_lesson_documents(
     wanted = set(lesson_source_ids) if lesson_source_ids else None
     requested = set(template_types) if template_types else set(AI_TEMPLATE_COLLECTIONS)
     skipped = set(skip_templates or ())
+    if requested & {"questions", "knowledge_productions"}:
+        requested.update({"summaries", "worksheets"} - skipped)
+    if wanted is not None:
+        return build_targeted_lesson_documents(
+            mongo, tahdiri, wanted, requested, skipped, min_questions, limit)
     uuid_sets = mongo.get_template_uuid_sets()
     file_infos = mongo.get_all_lesson_file_info()
-    candidates = mongo.find_documents_missing_questions()
+    candidates = mongo.find_documents_missing_templates(requested - skipped)
     summaries = mongo.get_stored_summaries([doc["uuid"] for doc in candidates])
 
     documents: List[Dict[str, Any]] = []
@@ -229,9 +242,10 @@ def build_lesson_documents(
             continue
         file_info = file_infos.get(lesson_id)
         if not file_info:
-            continue
+            file_info = {"title": ai_doc.get("filename")}
         missing = [t for t in AI_TEMPLATE_COLLECTIONS
-                   if ai_doc["uuid"] not in uuid_sets[t] and t in requested and t not in skipped]
+                   if (ai_doc["uuid"] not in uuid_sets[t] or t == "knowledge_productions")
+                   and t in requested and t not in skipped]
         if not missing:
             continue
         lesson_title = file_info.get("title") or ai_doc.get("filename")
@@ -282,8 +296,92 @@ def build_lesson_documents(
     return documents
 
 
-def main() -> int:
-    args = parse_args()
+def build_targeted_lesson_documents(mongo, tahdiri, lesson_ids, requested, skipped,
+                                    min_questions, limit):
+    """Look up explicit lesson IDs directly instead of scanning every AI record."""
+    documents = []
+    targets = [t for t in AI_TEMPLATE_COLLECTIONS if t in requested and t not in skipped]
+    if not targets:
+        return documents
+    projection = {"document_uuid": 1, "document_idx": 1, "custom_id": 1, "filename": 1}
+    for lesson_id in sorted(lesson_ids, key=str):
+        query = {"document_idx": {"$in": [str(lesson_id), lesson_id]}}
+        identities = {}
+        present = {}
+        for name in AI_TEMPLATE_COLLECTIONS:
+            for row in mongo.storage_db[name].find(query, projection):
+                uuid = row.get("document_uuid")
+                if not uuid:
+                    continue
+                identity = identities.setdefault(uuid, {"uuid": uuid, "idx": row.get("document_idx"),
+                                                     "custom_id": row.get("custom_id"),
+                                                     "filename": row.get("filename")})
+                for field, source in (("idx", "document_idx"), ("custom_id", "custom_id"),
+                                      ("filename", "filename")):
+                    identity[field] = identity[field] or row.get(source)
+                present.setdefault(uuid, set()).add(name)
+
+        file_info = mongo.get_lesson_file_info(lesson_id) or {}
+        if not identities:
+            # Match the all-lessons path: the ien-v2 lesson is the master list.
+            if not file_info:
+                continue
+            questions = tahdiri.get_questions_for_api_lesson(lesson_id)
+            if len(questions) >= min_questions:
+                documents.append(_new_lesson_document(lesson_id, file_info, questions, targets))
+            if limit and len(documents) >= limit:
+                break
+            continue
+
+        for uuid, identity in identities.items():
+            known = present[uuid]
+            for name in targets:
+                if name not in known and mongo.storage_db[name].find_one(
+                        {"document_uuid": uuid}, {"_id": 1}):
+                    known.add(name)
+            missing = [t for t in targets if t == "knowledge_productions" or t not in known]
+            if not missing:
+                continue
+            title = file_info.get("title") or identity.get("filename")
+            summary = mongo.storage_db["summaries"].find_one(
+                {"document_uuid": uuid}, {"summary": 1}) if "summaries" in known else None
+            if summary and summary.get("summary"):
+                content = summary_to_text(title, summary["summary"])
+                missing = [t for t in missing if t != "summaries"]
+                source = "ai-summary"
+            else:
+                questions = tahdiri.get_questions_for_api_lesson(lesson_id)
+                if len(questions) < min_questions:
+                    continue
+                content = build_lesson_content(
+                    {"title": title, "unit_title": file_info.get("extended_title")}, questions)
+                source = "tahdiri-questions"
+            if missing:
+                documents.append({**identity, "filename": title, "content": content,
+                                  "template_types": missing, "content_source": source})
+            if limit and len(documents) >= limit:
+                return documents
+    return documents
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    selected = set(args.templates) - set(args.skip)
+    if selected == {"knowledge_productions"}:
+        # Backfill complete lessons too, without requiring Tahdiri or ien-v2.
+        from knowledge_production import main as knowledge_main
+        command = ["--mongo-url", args.mongo_url, "--workers", str(args.workers)]
+        if args.lesson_source_id:
+            command += ["--lesson-id", *map(str, args.lesson_source_id)]
+        else:
+            command += ["--all"]
+        if args.limit:
+            command += ["--limit", str(args.limit)]
+        if args.force_knowledge:
+            command += ["--force"]
+        if args.dry_run:
+            command += ["--dry-run"]
+        return knowledge_main(command)
 
     mongo = MongoDBClient(args.mongo_url)
     tahdiri = TahdiriQuestionsClient(args.mongo_url)
@@ -292,6 +390,8 @@ def main() -> int:
 
     try:
         # Steps 1-4: AI lessons with 0 questions -> ien-v2 name + tahdiri questions = content
+        emit("discovery_started", lesson_id="selection", template="cycle",
+             stage="select_lessons", requested_ids=args.lesson_source_id or [])
         documents = build_lesson_documents(
             mongo,
             tahdiri,
@@ -301,14 +401,22 @@ def main() -> int:
             template_types=args.templates,
             skip_templates=args.skip,
         )
+        emit("discovery_completed", lesson_id="selection", template="cycle",
+             stage="select_lessons", total=len(documents))
         if not documents:
-            print("❌ No AI lessons with 0 questions (with ien-v2 info + tahdiri questions) found")
+            emit("run_started", total=0)
+            emit("run_finished", status="empty")
+            print("❌ No lessons need the selected templates or have usable source content")
             return 1
 
-        print(f"📚 Found {len(documents)} AI lesson(s) with 0 questions to update")
+        print(f"📚 Found {len(documents)} AI lesson(s) to update")
 
         if args.dry_run:
+            emit("run_started", total=len(documents), templates=args.templates)
             print_dry_run_preview(documents)
+            for doc in documents:
+                emit("lesson_completed", lesson_id=doc["uuid"], status="dry_run")
+            emit("run_finished", status="dry_run")
             return 0
 
         Settings.validate_config()
@@ -318,8 +426,9 @@ def main() -> int:
             mongo_client=mongo,
             template_generator=TemplateGenerator(),
             generator_factory=TemplateGenerator,
+            force_knowledge=args.force_knowledge,
         )
-        processor.process_documents(
+        stats = processor.process_documents(
             documents,
             template_types=args.templates,
             skip_existing=args.skip_existing,
@@ -328,7 +437,7 @@ def main() -> int:
     finally:
         tahdiri.disconnect()
         mongo.disconnect()
-    return 0
+    return int(bool(stats.failed_documents or sum(stats.get_summary()["template_failures"].values())))
 
 
 if __name__ == "__main__":

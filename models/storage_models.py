@@ -73,6 +73,7 @@ class ProcessingStats(BaseModel):
     successful_worksheets: int = 0
     successful_summaries: int = 0
     successful_mindmaps: int = 0
+    successful_knowledge_productions: int = 0
     failed_documents: int = 0
     skipped_documents: int = 0
     start_time: datetime = Field(default_factory=datetime.utcnow)
@@ -82,10 +83,12 @@ class ProcessingStats(BaseModel):
     attempts_worksheets: int = 0
     attempts_summaries: int = 0
     attempts_mindmaps: int = 0
+    attempts_knowledge_productions: int = 0
     failed_questions: int = 0
     failed_worksheets: int = 0
     failed_summaries: int = 0
     failed_mindmaps: int = 0
+    failed_knowledge_productions: int = 0
     
     def add_success(self, template_type: str):
         """Add a successful generation."""
@@ -97,6 +100,8 @@ class ProcessingStats(BaseModel):
             self.successful_summaries += 1
         elif template_type == "mindmaps":
             self.successful_mindmaps += 1
+        elif template_type == "knowledge_productions":
+            self.successful_knowledge_productions += 1
         # NOTE: processed_documents is now document-level, incremented via mark_document_processed()
 
     def add_attempt(self, template_type: str):
@@ -109,6 +114,8 @@ class ProcessingStats(BaseModel):
             self.attempts_summaries += 1
         elif template_type == "mindmaps":
             self.attempts_mindmaps += 1
+        elif template_type == "knowledge_productions":
+            self.attempts_knowledge_productions += 1
 
     def add_template_failure(self, template_type: str):
         """Record a failure for a specific template type (does not mark whole document failed)."""
@@ -120,6 +127,8 @@ class ProcessingStats(BaseModel):
             self.failed_summaries += 1
         elif template_type == "mindmaps":
             self.failed_mindmaps += 1
+        elif template_type == "knowledge_productions":
+            self.failed_knowledge_productions += 1
     
     def add_failure(self):
         """Add a failed generation."""
@@ -157,19 +166,22 @@ class ProcessingStats(BaseModel):
                 "questions": self.successful_questions,
                 "worksheets": self.successful_worksheets,
                 "summaries": self.successful_summaries,
-                "mindmaps": self.successful_mindmaps
+                "mindmaps": self.successful_mindmaps,
+                "knowledge_productions": self.successful_knowledge_productions
             },
             "template_attempts": {
                 "questions": self.attempts_questions,
                 "worksheets": self.attempts_worksheets,
                 "summaries": self.attempts_summaries,
-                "mindmaps": self.attempts_mindmaps
+                "mindmaps": self.attempts_mindmaps,
+                "knowledge_productions": self.attempts_knowledge_productions
             },
             "template_failures": {
                 "questions": self.failed_questions,
                 "worksheets": self.failed_worksheets,
                 "summaries": self.failed_summaries,
-                "mindmaps": self.failed_mindmaps
+                "mindmaps": self.failed_mindmaps,
+                "knowledge_productions": self.failed_knowledge_productions
             },
             "failed_documents": self.failed_documents,
             "skipped_documents": self.skipped_documents,

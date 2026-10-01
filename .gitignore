@@ -226,3 +226,6 @@ __marimo__/
 
 # History
 .history/
+# Generated knowledge-production run reports
+logs/knowledge-production-*.json
+logs/pending-knowledge-productions/

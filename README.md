@@ -2,6 +2,31 @@
 
 An AI-powered educational content generation platform that transforms lesson documents into structured question banks, worksheets, summaries, and mind maps. Built for the **TahderPlus** e-learning ecosystem with first-class **Arabic** and **English** bilingual support.
 
+## Knowledge production and frontend generation
+
+The separate `knowledge_production.py` command reads existing summaries,
+worksheet goals and questions, then saves the original validated format in
+`ai.knowledge_productions`:
+
+```bash
+.venv/bin/python knowledge_production.py --lesson-id 445 --dry-run
+.venv/bin/python knowledge_production.py --lesson-id 445
+.venv/bin/python knowledge_production.py --all --workers 4
+```
+
+Knowledge production is also part of the full batch cycle. The frontend can
+select it alongside summaries, worksheets, questions and mind maps, display the
+stored products, and show live stage logs and lesson progress:
+
+```bash
+.venv/bin/python results_dashboard.py --port 2007
+# Open http://localhost:2007
+```
+
+Select only knowledge production to backfill existing lessons, or multiple types
+to complete missing prerequisites first. Each worksheet goal gets one product.
+See [pipeline walkthrough, frontend usage and database contract](docs/knowledge-production.md).
+
 ---
 
 ## Table of Contents

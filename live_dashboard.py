@@ -11,6 +11,7 @@ import subprocess
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from utils.run_progress import PREFIX, read_progress
 
 ROOT = Path(__file__).resolve().parent
 LOG_DIR = ROOT / "logs"
@@ -36,9 +37,16 @@ def collect() -> dict:
         tail = [f"[batch.log] {line}" for line in batch_log.splitlines()[-6:]] + tail
     except OSError:
         pass
+    progress = {}
+    try:
+        ui_lines = (LOG_DIR / "ui_run.log").read_text(errors="replace").splitlines()
+        progress = read_progress(ui_lines)
+        tail += [f"[ui_run.log] {line}" for line in ui_lines if not line.startswith(PREFIX)][-30:]
+    except OSError:
+        pass
     try:
         workers = int(subprocess.run(
-            ["pgrep", "-fc", "questions_cycle[.]py"],
+            ["pgrep", "-fc", "questions_cycle[.]py|knowledge_production[.]py"],
             capture_output=True, text=True, timeout=5,
         ).stdout.strip() or 0)
     except Exception:
@@ -48,13 +56,16 @@ def collect() -> dict:
     elapsed = time.time() - START
     eta = int((elapsed / stats["done"]) * remaining) if stats["done"] else None
     return {**stats, "workers": workers, "remaining": remaining, "eta": eta,
-            "tail": tail[-60:], "elapsed": int(elapsed)}
+            "tail": tail[-60:], "elapsed": int(elapsed), "progress": progress}
 
 
 def render() -> str:
     s = collect()
     eta = time.strftime("%H:%M:%S", time.gmtime(s["eta"])) if s["eta"] is not None else "—"
     pct = (100.0 * (s["done"] + s["skips"]) / s["queued"]) if s["queued"] else 0.0
+    p = s['progress']
+    if p.get('total'):
+        pct = 100.0 * p['completed'] / p['total']
     tail = "\n".join(html.escape(line) for line in s["tail"])
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="5">
@@ -82,6 +93,7 @@ def render() -> str:
 </div>
 <div class="bar"><div class="fill" style="width:{pct:.1f}%"></div></div>
 <div class="l">{pct:.1f}% complete</div>
+<div class="l">Frontend run: {p.get('completed', 0)}/{p.get('total', 0)} lessons · successful {p.get('successful', 0)} · skipped {p.get('skipped', 0)} · need attention {p.get('failed', 0)}</div>
 <pre>{tail}</pre>
 </body></html>"""
 

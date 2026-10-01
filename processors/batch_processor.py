@@ -11,13 +11,16 @@ from clients.api_client import DocumentAPIClient
 from clients.mongo_client import MongoDBClient
 from generators.template_generator import TemplateGenerator
 from models.storage_models import ProcessingStats, DocumentInfo
+from utils.run_progress import emit, lesson_progress
+from kp.integration import generate_for_document
 
 class BatchProcessor:
     """Handles batch processing of documents for template generation."""
     
     def __init__(self, api_client: Optional[DocumentAPIClient], mongo_client: MongoDBClient, 
                  template_generator: TemplateGenerator,
-                 generator_factory: Optional[Callable[[], TemplateGenerator]] = None):
+                 generator_factory: Optional[Callable[[], TemplateGenerator]] = None,
+                 force_knowledge: bool = False):
         """
         Initialize batch processor.
         
@@ -33,6 +36,7 @@ class BatchProcessor:
         self.mongo_client = mongo_client
         self.template_generator = template_generator
         self.generator_factory = generator_factory
+        self.force_knowledge = force_knowledge
         self.stats = ProcessingStats()
         self._lock = threading.Lock()
     
@@ -58,7 +62,7 @@ class BatchProcessor:
             Processing statistics
         """
         if template_types is None:
-            template_types = ['questions', 'worksheets', 'summaries', 'mindmaps']
+            template_types = ['questions', 'worksheets', 'summaries', 'mindmaps', 'knowledge_productions']
         
         print(f"🚀 Starting batch processing...")
         print(f"📊 Template types: {template_types}")
@@ -94,12 +98,14 @@ class BatchProcessor:
             Processing statistics
         """
         if template_types is None:
-            template_types = ['questions', 'worksheets', 'summaries', 'mindmaps']
+            template_types = ['questions', 'worksheets', 'summaries', 'mindmaps', 'knowledge_productions']
         
         self.stats.total_documents = len(documents)
+        emit("run_started", total=len(documents), templates=template_types)
         
         if not documents:
             print("❌ No documents found")
+            emit("run_finished", status="empty")
             return self.stats
         
         print(f"📄 Processing {len(documents)} documents...")
@@ -114,6 +120,7 @@ class BatchProcessor:
         
         self.stats.finish()
         self._print_final_stats()
+        emit("run_finished", stats=self.stats.get_summary())
         
         return self.stats
     
@@ -123,7 +130,7 @@ class BatchProcessor:
         with tqdm(total=len(documents), desc="Processing documents") as pbar:
             for i, document in enumerate(documents):
                 try:
-                    self._process_single_document(document, template_types, skip_existing)
+                    self._run_document(document, template_types, skip_existing)
                     pbar.set_postfix({
                         'Current': document.get('filename', 'Unknown')[:30],
                         'Success': f"{self.stats.processed_documents}/{self.stats.total_documents}",
@@ -150,7 +157,7 @@ class BatchProcessor:
             generator = getattr(thread_state, "generator", None)
             if generator is None:
                 generator = thread_state.generator = self._new_generator()
-            self._process_single_document(document, template_types, skip_existing, generator)
+            self._run_document(document, template_types, skip_existing, generator)
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
@@ -176,6 +183,16 @@ class BatchProcessor:
                     finally:
                         pbar.update(1)
     
+    def _run_document(self, document, template_types, skip_existing, generator=None):
+        identity = str(document.get("uuid") or document.get("idx"))
+        emit("lesson_started", lesson_id=identity, title=document.get("filename"))
+        try:
+            status = self._process_single_document(document, template_types, skip_existing, generator)
+        except Exception as exc:
+            emit("lesson_completed", lesson_id=identity, status="error", reason=str(exc))
+            raise
+        emit("lesson_completed", lesson_id=identity, status=status or "failed")
+
     def _process_single_document(self, document_data: Dict[str, Any], 
                                template_types: List[str], skip_existing: bool,
                                generator: Optional[TemplateGenerator] = None):
@@ -194,12 +211,23 @@ class BatchProcessor:
         custom_id = document_data.get('custom_id')
         collection_id = document_data.get('collection_id')
         content = document_data.get('content_without_image', '') or document_data.get('content', '')
+        document_had_failure = False
+        progress = lesson_progress(document_uuid)
         document_had_success = False  # track if at least one template stored successfully
         # Explicit per-document targets (fill-missing cycle) override the batch list
         document_types = document_data.get('template_types')
         if document_types:
             template_types = document_types
         
+        if set(template_types) == {"knowledge_productions"} and (document_types or all(
+                self.mongo_client.check_document_exists(document_uuid, t) for t in ("summaries", "worksheets"))):
+            with self._lock:
+                self.stats.start_document_attempt()
+            status = self._generate_knowledge(document_data, progress, force=self.force_knowledge)
+            with self._lock:
+                self.stats.mark_document_processed(status in {"generated", "partial"})
+            return status
+
         # Skip documents with specific collection IDs
         skip_collection_ids = [
             # 'd441cb83-1db7-472d-8ed7-43933399ad41',
@@ -212,20 +240,20 @@ class BatchProcessor:
             print(f"⏭️ Skipping document {filename} - collection_id {collection_id} is in skip list")
             with self._lock:
                 self.stats.add_skip()
-            return
+            return "skipped"
         
         if not content or len(content.strip()) < 20:
             print(f"⚠️ Skipping document with insufficient content length: {filename}")
             with self._lock:
                 self.stats.add_skip()
-            return
+            return "skipped"
         
         # Check if we should skip existing documents
         if skip_existing:
             existing_types = []
             for template_type in template_types:
                 collection_name = template_type if template_type.endswith('s') else f"{template_type}s"
-                if self.mongo_client.check_document_exists(document_uuid, collection_name):
+                if collection_name != "knowledge_productions" and self.mongo_client.check_document_exists(document_uuid, collection_name):
                     existing_types.append(template_type)
             
             if existing_types:
@@ -234,16 +262,26 @@ class BatchProcessor:
                     print(f"⏭️ Skipping {filename} - all templates already exist")
                     with self._lock:
                         self.stats.add_skip()
-                    return
+                    return "skipped"
                 template_types = remaining_types
         
-        # Enforce generation order: summary -> worksheet -> questions -> mindmap
+        if set(template_types) == {"knowledge_productions"} and all(
+                self.mongo_client.check_document_exists(document_uuid, t) for t in ("summaries", "worksheets")):
+            with self._lock:
+                self.stats.start_document_attempt()
+            status = self._generate_knowledge(document_data, progress, force=self.force_knowledge)
+            with self._lock:
+                self.stats.mark_document_processed(status in {"generated", "partial"})
+            return status
+
+        # Enforce generation order: summary -> worksheet -> questions -> mindmap -> knowledge production
         requested = set([t if t.endswith('s') else f"{t}s" for t in template_types])
         # If questions requested, also generate summary and worksheet as prerequisites
         # (skipped when the caller pins explicit per-document targets)
-        if "questions" in requested and not document_types:
-            requested.update({"summaries", "worksheets"})
-        ordered_types = [t for t in ["summaries", "worksheets", "questions", "mindmaps"] if t in requested]
+        if requested & {"questions", "knowledge_productions"} and not document_types:
+            requested.update(t for t in ("summaries", "worksheets")
+                             if not self.mongo_client.check_document_exists(document_uuid, t))
+        ordered_types = [t for t in ["summaries", "worksheets", "questions", "mindmaps", "knowledge_productions"] if t in requested]
         # Mark that we are attempting this document (if any ordered types)
         if ordered_types:
             with self._lock:
@@ -253,6 +291,7 @@ class BatchProcessor:
         summary_result = None
         if any(t in ordered_types for t in ["summaries"]):
             try:
+                lesson_progress(document_uuid, "summaries")("generate", state="started")
                 with self._lock:
                     self.stats.add_attempt("summaries")
                 summary_result = generator.generate_summary(content=content)
@@ -266,6 +305,7 @@ class BatchProcessor:
                 print(f"❌ Failed to generate summary for {filename}: {str(e)}")
                 with self._lock:
                     self.stats.add_template_failure("summaries")
+                document_had_failure = True
 
         # Step 2: Goals (DB -> stored worksheet -> AI)
         goals = []
@@ -273,7 +313,8 @@ class BatchProcessor:
             goals = self.mongo_client.get_goals_by_custom_id(custom_id)
         if not goals:
             stored_worksheet = self.mongo_client.get_stored_record(document_uuid, "worksheets")
-            goals = list((stored_worksheet or {}).get("goals") or [])
+            goals = list(((stored_worksheet or {}).get("worksheet") or {}).get("goals")
+                         or (stored_worksheet or {}).get("goals") or [])
         if not goals:
             # AI-generate goals from content (no default static list)
             try:
@@ -287,6 +328,7 @@ class BatchProcessor:
         worksheet_result = None
         if any(t in ordered_types for t in ["worksheets"]):
             try:
+                lesson_progress(document_uuid, "worksheets")("generate", state="started")
                 with self._lock:
                     self.stats.add_attempt("worksheets")
                 worksheet_result = generator.generate_worksheet(content=content, goals=goals)
@@ -318,10 +360,12 @@ class BatchProcessor:
                 print(f"❌ Failed to generate worksheet for {filename}: {str(e)}")
                 with self._lock:
                     self.stats.add_template_failure("worksheets")
+                document_had_failure = True
 
         # Step 4: Questions (use final goals; include math reasoning if analysis suggests)
         if any(t in ordered_types for t in ["questions"]):
             try:
+                lesson_progress(document_uuid, "questions")("generate", state="started")
                 with self._lock:
                     self.stats.add_attempt("questions")
                 questions_result = generator.generate_goal_based_questions(
@@ -345,10 +389,12 @@ class BatchProcessor:
                 print(f"❌ Failed to generate questions for {filename}: {str(e)}")
                 with self._lock:
                     self.stats.add_template_failure("questions")
+                document_had_failure = True
 
         # Step 5: Mind Map
         if any(t in ordered_types for t in ["mindmaps"]):
             try:
+                lesson_progress(document_uuid, "mindmaps")("generate", state="started")
                 with self._lock:
                     self.stats.add_attempt("mindmaps")
                 mindmap_result = generator.generate_mindmap(content=content)
@@ -362,10 +408,41 @@ class BatchProcessor:
                 print(f"❌ Failed to generate mindmap for {filename}: {str(e)}")
                 with self._lock:
                     self.stats.add_template_failure("mindmaps")
+                document_had_failure = True
+
+        if "knowledge_productions" in ordered_types:
+            status = self._generate_knowledge(document_data, progress, force=self.force_knowledge)
+            document_had_success |= status in {"generated", "partial"}
+            document_had_failure |= status not in {"generated", "up_to_date"}
 
         # After all templates attempted, mark document processed if any success
         with self._lock:
             self.stats.mark_document_processed(document_had_success)
+        return "partial" if document_had_failure and document_had_success else (
+            "failed" if document_had_failure or not document_had_success else "generated")
+
+    def _generate_knowledge(self, document, progress, force=False):
+        with self._lock:
+            self.stats.add_attempt("knowledge_productions")
+        try:
+            result = generate_for_document(document, self.mongo_client.storage_db,
+                                           force=force, progress=progress)
+            status = result["status"]
+            print(f"Knowledge production {status} for {document.get('filename')}: "
+                  f"{result.get('products', 0)} products", flush=True)
+            if status not in {"generated", "up_to_date"}:
+                print(f"❌ Knowledge production: {result.get('reason') or result.get('failed_goals') or result.get('errors')}", flush=True)
+            with self._lock:
+                if status in {"generated", "partial"}:
+                    self.stats.add_success("knowledge_productions")
+                if status not in {"generated", "up_to_date"}:
+                    self.stats.add_template_failure("knowledge_productions")
+            return status
+        except Exception as exc:
+            print(f"❌ Failed to generate knowledge production: {exc}", flush=True)
+            with self._lock:
+                self.stats.add_template_failure("knowledge_productions")
+            return "failed"
     
     def _get_goals_for_document(self, custom_id: str, content: str) -> List[str]:
         """Deprecated: goals now come from DB or AI; left for backward compatibility."""
@@ -449,12 +526,13 @@ class BatchProcessor:
         print(f"  📋 Worksheets: {successful['worksheets']}")
         print(f"  📄 Summaries: {successful['summaries']}")
         print(f"  🧠 Mind Maps: {successful['mindmaps']}")
+        print(f"  📚 Knowledge Productions: {successful['knowledge_productions']}")
         # Additional attempt/failure details if available
         attempts = stats_summary.get('template_attempts')
         failures = stats_summary.get('template_failures')
         if attempts and failures:
             print("Template Attempts vs Failures:")
-            for t in ["summaries", "worksheets", "questions", "mindmaps"]:
+            for t in ["summaries", "worksheets", "questions", "mindmaps", "knowledge_productions"]:
                 a = attempts.get(t, 0)
                 f = failures.get(t, 0)
                 s = successful.get(t, 0)

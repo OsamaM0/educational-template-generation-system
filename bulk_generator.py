@@ -113,8 +113,8 @@ Examples:
     parser.add_argument("--start-page", type=int, default=1,
                        help="Page number to start fetching from (default: 1)")
     parser.add_argument("--templates", nargs="+", 
-                       choices=["questions", "worksheets", "summaries", "mindmaps"],
-                       default=["questions", "worksheets", "summaries", "mindmaps"],
+                       choices=["questions", "worksheets", "summaries", "mindmaps", "knowledge_productions"],
+                       default=["questions", "worksheets", "summaries", "mindmaps", "knowledge_productions"],
                        help="Template types to generate (default: all)")
     parser.add_argument("--skip-existing", action="store_true",
                        help="Skip documents that already have generated templates")

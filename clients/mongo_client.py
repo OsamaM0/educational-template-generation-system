@@ -17,7 +17,7 @@ _FALLBACK_MONGODB_URI = "mongodb://ai:VgjVpcllJjhYy2c@65.109.31.94:27017/ai?dire
 
 DEFAULT_MONGODB_URI = os.getenv("MONGODB_URI") or _FALLBACK_MONGODB_URI
 
-AI_TEMPLATE_COLLECTIONS = ("summaries", "worksheets", "questions", "mindmaps")
+AI_TEMPLATE_COLLECTIONS = ("summaries", "worksheets", "questions", "mindmaps", "knowledge_productions")
 
 
 def _lesson_file_info(doc: Dict[str, Any]) -> Dict[str, Any]:
@@ -458,6 +458,28 @@ class MongoDBClient:
         documents.sort(key=lambda doc: str(doc.get("idx") or ""))
         return documents[:limit] if limit else documents
     
+    def find_documents_missing_templates(self, requested):
+        """Select any missing requested template; KP also checks freshness on reruns."""
+        requested = set(requested)
+        sets = self.get_template_uuid_sets()
+        documents = {}
+        for name in AI_TEMPLATE_COLLECTIONS:
+            for row in self.storage_db[name].find({}, {
+                "document_uuid": 1, "document_idx": 1, "custom_id": 1, "filename": 1,
+            }):
+                uuid = row.get("document_uuid")
+                if uuid and uuid not in documents:
+                    documents[uuid] = {"uuid": uuid, "idx": row.get("document_idx"),
+                                       "custom_id": row.get("custom_id"), "filename": row.get("filename")}
+        pending = [doc for uuid, doc in documents.items()
+                   if "knowledge_productions" in requested or
+                   any(uuid not in sets.get(name, set()) for name in requested)]
+        # A limited backfill must advance to missing records on its next run.
+        # Existing KP records remain candidates so fingerprints can detect stale inputs.
+        return sorted(pending, key=lambda doc: (
+            all(doc['uuid'] in sets.get(name, set()) for name in requested),
+            str(doc.get('idx') or '')))
+
     def get_template_uuid_sets(self) -> Dict[str, set]:
         """Bulk-scan every AI template collection once: {collection: {document_uuid}}."""
         sets: Dict[str, set] = {}

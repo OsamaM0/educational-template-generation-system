@@ -1,0 +1,234 @@
+{
+  "finished_at": "2026-09-29T23:57:01",
+  "llm": "openrouter",
+  "dry_run": true,
+  "database": "ai",
+  "collection": "knowledge_productions",
+  "counts": {
+    "dry_run": 5
+  },
+  "usage": {
+    "calls": 0,
+    "input_tokens": 0,
+    "cached_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "by_step": {},
+    "by_model": {},
+    "models": {},
+    "estimated_cost_usd": 0,
+    "cost_by_model_usd": {}
+  },
+  "results": [
+    {
+      "lesson_id": "7bf16cad-019a-4328-ab4a-bb0a35505ff9",
+      "id_type": "uuid",
+      "document_uuid": "7bf16cad-019a-4328-ab4a-bb0a35505ff9",
+      "document_idx": "43617",
+      "title": "النثر السعودي 2- فن المقالة",
+      "status": "dry_run",
+      "existing": false,
+      "stale": false,
+      "plan": {
+        "goals": [
+          {
+            "goal_id": "goal_1",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_2",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_3",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_4",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_5",
+            "questions": 8,
+            "ok": true
+          }
+        ],
+        "calls": 11,
+        "note": "Upper bound before optional question selection; no questions are required."
+      },
+      "seconds": 0.7
+    },
+    {
+      "lesson_id": "4054a68f-2855-4d04-b2d3-39e51eb01464",
+      "id_type": "uuid",
+      "document_uuid": "4054a68f-2855-4d04-b2d3-39e51eb01464",
+      "document_idx": "43614",
+      "title": "اتجاه المزاوجة بين المحافظة والتجديد",
+      "status": "dry_run",
+      "existing": false,
+      "stale": false,
+      "plan": {
+        "goals": [
+          {
+            "goal_id": "goal_1",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_2",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_3",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_4",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_5",
+            "questions": 8,
+            "ok": true
+          }
+        ],
+        "calls": 11,
+        "note": "Upper bound before optional question selection; no questions are required."
+      },
+      "seconds": 0.7
+    },
+    {
+      "lesson_id": "e12f7f3c-c132-450a-af15-e85440b33bfa",
+      "id_type": "uuid",
+      "document_uuid": "e12f7f3c-c132-450a-af15-e85440b33bfa",
+      "document_idx": "43613",
+      "title": "الاتجاهات الفنية في الشعر السعودي 1- الاتجاه التقليدي المحافظ",
+      "status": "dry_run",
+      "existing": false,
+      "stale": false,
+      "plan": {
+        "goals": [
+          {
+            "goal_id": "goal_1",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_2",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_3",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_4",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_5",
+            "questions": 8,
+            "ok": true
+          }
+        ],
+        "calls": 11,
+        "note": "Upper bound before optional question selection; no questions are required."
+      },
+      "seconds": 0.7
+    },
+    {
+      "lesson_id": "0fad2086-dc33-4526-a6ba-9065058a44b0",
+      "id_type": "uuid",
+      "document_uuid": "0fad2086-dc33-4526-a6ba-9065058a44b0",
+      "document_idx": "43615",
+      "title": "الاتجاه التجديدي",
+      "status": "dry_run",
+      "existing": false,
+      "stale": false,
+      "plan": {
+        "goals": [
+          {
+            "goal_id": "goal_1",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_2",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_3",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_4",
+            "questions": 0,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_5",
+            "questions": 0,
+            "ok": true
+          }
+        ],
+        "calls": 9,
+        "note": "Upper bound before optional question selection; no questions are required."
+      },
+      "seconds": 0.7
+    },
+    {
+      "lesson_id": "dbbde429-9975-4c39-ba7e-781c9460d36f",
+      "id_type": "uuid",
+      "document_uuid": "dbbde429-9975-4c39-ba7e-781c9460d36f",
+      "document_idx": "43612",
+      "title": "الموضوعات الحديثة للشعر السعودي المعاصر",
+      "status": "dry_run",
+      "existing": false,
+      "stale": false,
+      "plan": {
+        "goals": [
+          {
+            "goal_id": "goal_1",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_2",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_3",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_4",
+            "questions": 8,
+            "ok": true
+          },
+          {
+            "goal_id": "goal_5",
+            "questions": 8,
+            "ok": true
+          }
+        ],
+        "calls": 11,
+        "note": "Upper bound before optional question selection; no questions are required."
+      },
+      "seconds": 0.9
+    }
+  ]
+}

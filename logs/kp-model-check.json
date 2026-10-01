@@ -1,0 +1,46 @@
+{
+  "finished_at": "2026-09-30T00:04:39",
+  "llm": "openrouter",
+  "dry_run": false,
+  "database": "ai",
+  "collection": "knowledge_productions",
+  "counts": {
+    "failed": 1
+  },
+  "usage": {
+    "calls": 0,
+    "input_tokens": 0,
+    "cached_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "by_step": {},
+    "by_model": {},
+    "models": {},
+    "estimated_cost_usd": 0,
+    "cost_by_model_usd": {}
+  },
+  "results": [
+    {
+      "lesson_id": "26175",
+      "id_type": "idx",
+      "document_uuid": "2e2418fe-f881-478b-bd84-137c17b3b69a",
+      "document_idx": "26175",
+      "title": "حجم الأسطوانة",
+      "status": "failed",
+      "reason": "topics: provider unavailable after retries (RateLimitError)",
+      "usage": {
+        "calls": 0,
+        "input_tokens": 0,
+        "cached_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "by_step": {},
+        "by_model": {},
+        "models": {},
+        "estimated_cost_usd": 0,
+        "cost_by_model_usd": {}
+      },
+      "seconds": 35.4
+    }
+  ]
+}
